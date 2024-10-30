@@ -1,0 +1,6 @@
+[workspace]
+resolver = "2"
+members = [
+    "packages/nr-adf-lib",
+    "packages/nr-adf-tools",
+]
