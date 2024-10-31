@@ -8,26 +8,11 @@ use anyhow::{
 
 use nr_adf_lib::disk::{DiskGeometry, DiskType};
 
+use crate::cli_common::ArgDiskType;
+
 /******************************************************************************
  * Create command run
  *****************************************************************************/
-
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, clap::ValueEnum)]
-pub enum ArgDiskType {
-    DD,
-    HD,
-}
-
-impl Into<DiskType> for ArgDiskType {
-    fn into(self) -> DiskType {
-        match self {
-            Self::DD => DiskType::DoubleDensity,
-            Self::HD => DiskType::HighDensity,
-        }
-    }
-}
-
-
 #[derive(clap::Args)]
 pub struct Args {
     /// Output file
