@@ -5,5 +5,6 @@ edition = "2021"
 
 
 [dependencies]
+anyhow = "1.0.91"
 clap = { version = "4.5.20", features = ["derive"] }
 nr-adf-lib = { path = "../nr-adf-lib" }
