@@ -1,5 +1,5 @@
-use std::fs::{self, write};
-use std::path::PathBuf;
+use std::fs;
+use std::path;
 
 use anyhow::{
     anyhow,
@@ -31,7 +31,7 @@ impl Into<DiskType> for ArgDiskType {
 #[derive(clap::Args)]
 pub struct Args {
     /// Output file
-    pub output_file_path: PathBuf,
+    pub output_file_path: path::PathBuf,
 
     /// Specify disk type
     #[arg(long, short = 'F', default_value = "dd")]
