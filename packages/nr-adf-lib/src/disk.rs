@@ -107,3 +107,32 @@ impl DiskGeometry {
         }
     }
 }
+
+pub struct Disk {
+    data: Vec<u8>,
+    geometry: DiskGeometry,
+}
+
+impl Disk {
+    pub fn try_create_with_data_and_geometry(
+        data: Vec<u8>,
+        geometry: DiskGeometry,
+    ) -> Result<Self, InvalidSizeError> {
+        if data.len() == geometry.size() {
+            Ok(Disk {
+                data,
+                geometry,
+            })
+        } else {
+            Err(geometry.into())
+        }
+    }
+
+    pub fn data(&self) -> &[u8] {
+        &self.data[..]
+    }
+
+    pub fn geometry(&self) -> &DiskGeometry {
+        &self.geometry
+    }
+}
