@@ -4,11 +4,12 @@ use crate::errors::*;
 pub type CHSAddress = (usize, usize, usize);
 pub type LBAAddress = usize;
 
-pub enum FloppyDiskFormat {
+pub enum DiskType {
     DoubleDensity,
     HighDensity,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct DiskGeometry {
     sector_size: usize,
     sectors_per_track: usize,
@@ -18,16 +19,16 @@ pub struct DiskGeometry {
     size: usize,
 }
 
-impl From<FloppyDiskFormat> for DiskGeometry {
-    fn from(value: FloppyDiskFormat) -> Self {
+impl From<DiskType> for DiskGeometry {
+    fn from(value: DiskType) -> Self {
         match value {
-            FloppyDiskFormat::DoubleDensity => DiskGeometry::new(
+            DiskType::DoubleDensity => DiskGeometry::new(
                 512, // sector size
                 11,  // sectors per track
                 2,   // tracks per cylinder
                 80,  // cylinder count
             ),
-            FloppyDiskFormat::HighDensity => DiskGeometry::new(
+            DiskType::HighDensity => DiskGeometry::new(
                 512, // sector size
                 22,  // sectors per track
                 2,   // tracks per cylinder
