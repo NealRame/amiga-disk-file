@@ -12,7 +12,7 @@ use nr_adf_lib::disk::{DiskGeometry, DiskType};
  * Create command run
  *****************************************************************************/
 
- #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, clap::ValueEnum)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, clap::ValueEnum)]
 pub enum ArgDiskType {
     DD,
     HD,
