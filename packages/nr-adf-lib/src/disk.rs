@@ -128,11 +128,39 @@ impl Disk {
         }
     }
 
-    pub fn data(&self) -> &[u8] {
-        &self.data[..]
+    fn block_bounds(
+        &self,
+        addr: LBAAddress,
+    ) -> Result<(usize, usize), InvalidLBAAddressError> {
+        if addr < self.geometry.max_block {
+            let begin = addr*self.geometry.sector_size;
+            let end = begin + self.geometry.sector_size;
+
+            Ok((begin, end))
+        } else {
+            Err(addr.into())
+        }
     }
 
-    pub fn geometry(&self) -> &DiskGeometry {
-        &self.geometry
+    pub fn block(
+        &self,
+        addr: LBAAddress,
+    ) -> Result<&[u8], InvalidLBAAddressError> {
+        let (begin, end) = self.block_bounds(addr)?;
+
+        Ok(&self.data[begin..end])
+    }
+
+    pub fn block_mut(
+        &mut self,
+        addr: LBAAddress,
+    ) -> Result<&mut [u8], InvalidLBAAddressError> {
+        let (begin, end) = self.block_bounds(addr)?;
+
+        Ok(&mut self.data[begin..end])
+    }
+
+    pub fn data(&self) -> &[u8] {
+        &self.data[..]
     }
 }
