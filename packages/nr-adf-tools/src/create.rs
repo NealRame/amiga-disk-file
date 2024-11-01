@@ -6,7 +6,7 @@ use anyhow::{
     Result,
 };
 
-use nr_adf_lib::disk::{DiskGeometry, DiskType};
+use nr_adf_lib::disk::Disk;
 
 use crate::cli_common::ArgDiskType;
 
@@ -28,14 +28,13 @@ pub struct Args {
 }
 
 pub fn run(args: &Args) -> Result<()> {
-    let disk_type: DiskType = args.floppy_disk_type.into();
-    let disk_geometry = DiskGeometry::from(disk_type);
-    let disk_data = vec![0; disk_geometry.size()];
+    // let disk_type: DiskType = args.floppy_disk_type.into();
+    let disk = Disk::create(args.floppy_disk_type.into());
 
     if args.output_file_path.exists() && !args.force_overwrite {
         return Err(anyhow!("output file already exists!"));
     }
 
-    fs::write(&args.output_file_path, disk_data)?;
+    fs::write(&args.output_file_path, disk.data())?;
     Ok(())
 }

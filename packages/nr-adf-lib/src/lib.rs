@@ -9,16 +9,20 @@ mod tests {
     use super::*;
 
     #[test]
-    fn dd_floppy_disk_max_block_is_ok() {
+    fn dd_floppy_geometry_is_ok() {
         let disk_geometry = DiskGeometry::from(DiskType::DoubleDensity);
 
-        assert_eq!(disk_geometry.max_block(), 1760);
+        assert_eq!(disk_geometry.block_count, 1760);
+        assert_eq!(disk_geometry.block_size, 512);
+        assert_eq!(disk_geometry.size(), 901_120);
     }
 
     #[test]
-    fn dd_floppy_disk_size_is_ok() {
-        let disk_geometry = DiskGeometry::from(DiskType::DoubleDensity);
+    fn hd_floppy_geometry_is_ok() {
+        let disk_geometry = DiskGeometry::from(DiskType::HighDensity);
 
-        assert_eq!(disk_geometry.size(), 901120);
+        assert_eq!(disk_geometry.block_count, 3520);
+        assert_eq!(disk_geometry.block_size, 512);
+        assert_eq!(disk_geometry.size(), 1_802_240);
     }
 }
