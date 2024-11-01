@@ -102,6 +102,10 @@ impl Disk {
     }
 
     pub fn data(&self) -> &[u8] {
-        &self.data[..]
+        self.data.as_slice()
+    }
+
+    pub fn data_mut(&mut self) -> &mut [u8] {
+        self.data.as_mut_slice()
     }
 }
