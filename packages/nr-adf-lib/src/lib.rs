@@ -1,6 +1,5 @@
-pub mod errors;
 pub mod disk;
-
+pub mod errors;
 
 #[cfg(test)]
 mod tests {
