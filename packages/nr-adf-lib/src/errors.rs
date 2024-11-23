@@ -1,6 +1,5 @@
 use std::fmt;
 
-use crate::disk::DiskGeometry;
 
 /******************************************************************************
  * InvalidLBAAddressError
@@ -25,10 +24,10 @@ impl fmt::Display for InvalidLBAAddressError {
  * InvalidSizeError
  *****************************************************************************/
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct InvalidSizeError(DiskGeometry);
+pub struct InvalidSizeError(usize);
 
-impl From<DiskGeometry> for InvalidSizeError {
-    fn from(value: DiskGeometry) -> Self {
+impl From<usize> for InvalidSizeError {
+    fn from(value: usize) -> Self {
         InvalidSizeError(value)
     }
 }
