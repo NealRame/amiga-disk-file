@@ -28,14 +28,14 @@ impl Disk {
     fn block_bounds(
         &self,
         addr: LBAAddress,
-    ) -> Result<(usize, usize), InvalidLBAAddressError> {
+    ) -> Result<(usize, usize), Error> {
         if addr < self.block_count() {
             let begin = addr*BLOCK_SIZE;
             let end = begin + BLOCK_SIZE;
 
             Ok((begin, end))
         } else {
-            Err(addr.into())
+            Err(Error::DiskInvalidLBAAddressError(addr))
         }
     }
 }
@@ -62,7 +62,7 @@ impl Disk {
 
     pub fn try_create_with_data(
         disk_data: Vec<u8>,
-    ) -> Result<Self, InvalidSizeError> {
+    ) -> Result<Self, Error> {
         let disk_size = disk_data.len();
 
         if disk_size == DiskType::DoubleDensity.size() {
@@ -79,13 +79,13 @@ impl Disk {
             });
         }
 
-        Err(disk_size.into())
+        Err(Error::DiskInvalidSizeError(disk_size))
     }
 
     pub fn block(
         &self,
         addr: LBAAddress,
-    ) -> Result<&[u8], InvalidLBAAddressError> {
+    ) -> Result<&[u8], Error> {
         let (begin, end) = self.block_bounds(addr)?;
 
         Ok(&self.disk_data[begin..end])
@@ -94,7 +94,7 @@ impl Disk {
     pub fn block_mut(
         &mut self,
         addr: LBAAddress,
-    ) -> Result<&mut [u8], InvalidLBAAddressError> {
+    ) -> Result<&mut [u8], Error> {
         let (begin, end) = self.block_bounds(addr)?;
 
         Ok(&mut self.disk_data[begin..end])
@@ -112,7 +112,7 @@ impl Disk {
         &self,
         block_addr: LBAAddress,
         block_count: usize,
-    ) -> Result<Vec<u8>, InvalidLBAAddressError> {
+    ) -> Result<Vec<u8>, Error> {
         let first = block_addr;
         let last = block_addr + block_count;
         let mut data = Vec::with_capacity(block_addr*BLOCK_SIZE);

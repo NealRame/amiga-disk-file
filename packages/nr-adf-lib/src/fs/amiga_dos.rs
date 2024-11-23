@@ -5,7 +5,7 @@ use crate::disk::{
     Disk,
 };
 
-use crate::fs::errors::Error;
+use crate::errors::Error;
 
 
 #[repr(u8)]
@@ -90,7 +90,7 @@ fn verify_checksum(data: &[u8], expected: u32) -> Result<(), Error> {
 
 impl BootBlock {
     pub fn try_read_from_disk(disk: &Disk) -> Result<Self, Error> {
-        let mut data = disk.read_blocks(0, 2).or(Err(Error::DiskError))?;
+        let mut data = disk.read_blocks(0, 2)?;
 
         if &data[0..3] != &[0x44, 0x4f, 0x53] { // DOS
             return Err(Error::CorruptedImageFile);
