@@ -48,6 +48,10 @@ impl Disk {
     pub fn size(&self) -> usize {
         self.block_count()*BLOCK_SIZE
     }
+
+    pub fn disk_type(&self) -> DiskType {
+        self.disk_type
+    }
 }
 
 impl Disk {

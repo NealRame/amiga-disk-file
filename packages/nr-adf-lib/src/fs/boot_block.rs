@@ -1,11 +1,10 @@
 use std::fmt;
 
-use crate::disk::{
-    BLOCK_SIZE,
-    Disk,
-};
+use crate::disk::Disk;
 
 use crate::errors::Error;
+
+use super::constants::*;
 
 
 #[repr(u8)]
@@ -22,7 +21,6 @@ impl fmt::Display for FileSystemType {
         }
     }
 }
-
 
 #[repr(u8)]
 pub enum InternationalMode {
@@ -54,12 +52,6 @@ impl fmt::Display for CacheMode {
     }
 }
 
-pub struct BootBlock {
-    boot_code: [u8; 2*BLOCK_SIZE - 12],
-    flags: u8,
-    root_block_address: u32,
-}
-
 fn verify_checksum(data: &[u8], expected: u32) -> Result<(), Error> {
     let mut checksum = 0u32;
 
@@ -81,8 +73,25 @@ fn verify_checksum(data: &[u8], expected: u32) -> Result<(), Error> {
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct BootBlock {
+    boot_code: [u8; BOOT_BLOCK_BOOT_CODE_SIZE],
+    flags: u8,
+    root_block_address: u32,
+}
+
+impl Default for BootBlock {
+    fn default() -> Self {
+        Self {
+            boot_code: [0; BOOT_BLOCK_BOOT_CODE_SIZE],
+            flags: 0,
+            root_block_address: 0,
+        }
+    }
+}
+
 impl BootBlock {
-    pub fn try_read_from_disk(disk: &Disk) -> Result<Self, Error> {
+    pub fn try_read_from_disk(&mut self, disk: &Disk) -> Result<(), Error> {
         let mut data = disk.read_blocks(0, 2)?;
 
         if &data[0..3] != &[0x44, 0x4f, 0x53] { // DOS
@@ -94,17 +103,11 @@ impl BootBlock {
         data[4..8].fill(0);
         verify_checksum(&data, checksum)?;
 
-        let flags = data[3];
-        let root_block_address = u32::from_be_bytes(data[8..12].try_into().unwrap());
+        self.flags = data[3];
+        self.boot_code.copy_from_slice(&data[12..]);
+        self.root_block_address = u32::from_be_bytes(data[8..12].try_into().unwrap());
 
-        let mut boot_code = [0u8; 2*BLOCK_SIZE - 12];
-        boot_code.copy_from_slice(&data[12..]);
-
-        Ok(BootBlock {
-            boot_code,
-            flags,
-            root_block_address,
-        })
+        Ok(())
     }
 }
 

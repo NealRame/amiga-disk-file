@@ -2,21 +2,29 @@ use crate::disk::Disk;
 use crate::errors::Error;
 use crate::fs::boot_block::BootBlock;
 
+use super::root_block::RootBlock;
+
 
 pub struct AmigaDos<'disk> {
     pub disk: &'disk Disk,
     pub boot_block: BootBlock,
+    pub root_block: RootBlock,
 }
 
 impl<'disk> TryFrom<&'disk Disk> for AmigaDos<'disk> {
     type Error = Error;
 
     fn try_from(disk: &'disk Disk) -> Result<Self, Self::Error> {
-        let boot_block = BootBlock::try_read_from_disk(disk)?;
+        let mut boot_block = BootBlock::default();
+        let mut root_block = RootBlock::default();
+
+        boot_block.try_read_from_disk(disk)?;
+        root_block.try_read_from_disk(disk)?;
 
         Ok(AmigaDos {
             disk,
             boot_block,
+            root_block,
         })
     }
 }

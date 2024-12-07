@@ -4,8 +4,13 @@ use std::fmt;
 pub enum Error {
     CorruptedImageFile,
 
+    InvalidHeaderType(u32),
+
     DiskInvalidLBAAddressError(usize),
+    DiskInvalidBlockOffsetError(usize),
     DiskInvalidSizeError(usize),
+
+    DiskReadError,
 }
 
 impl std::error::Error for Error {}
