@@ -118,6 +118,9 @@ checksum = "7943c866cc5cd64cbc25b2e01621d07fa8eb2a1a23160ee81ce38704e97b8ecf"
 [[package]]
 name = "nr-adf-lib"
 version = "0.1.0"
+dependencies = [
+ "paste",
+]
 
 [[package]]
 name = "nr-adf-tools"
@@ -127,6 +130,12 @@ dependencies = [
  "clap",
  "nr-adf-lib",
 ]
+
+[[package]]
+name = "paste"
+version = "1.0.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "57c0d7b74b563b49d38dae00a0c37d4d6de9b432382b2892f0574ddcae73fd0a"
 
 [[package]]
 name = "proc-macro2"
