@@ -1,14 +1,15 @@
 mod cli_common;
 
 mod create;
-mod info;
 mod format;
+mod info;
 
 use clap::{Parser, Subcommand};
 
 #[derive(Subcommand)]
 pub enum Commands {
     Create(create::Args),
+    Format(format::Args),
     Info(info::Args),
 }
 
@@ -25,6 +26,7 @@ fn main() {
 
     let res = match &args.command {
         Commands::Create(args) => create::run(args),
+        Commands::Format(args) => format::run(args),
         Commands::Info(args) => info::run(args),
     };
 
