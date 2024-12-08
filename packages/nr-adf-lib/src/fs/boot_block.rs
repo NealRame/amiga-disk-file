@@ -107,7 +107,6 @@ impl BootBlock {
             InternationalMode::No
         } else {
             InternationalMode::Yes
-
         }
     }
 
