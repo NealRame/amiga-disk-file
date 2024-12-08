@@ -1,10 +1,27 @@
 use std::fmt;
 
-use crate::disk::Disk;
+use crate::disk::{Disk, BLOCK_SIZE};
 
 use crate::errors::Error;
 
 use super::constants::*;
+
+
+pub const BOOT_BLOCK_CHECKSUM_OFFSET   : usize = 0x04;
+pub const BOOT_BLOCK_ROOT_BLOCK_OFFSET : usize = 0x08;
+pub const BOOT_BLOCK_BOOT_CODE_OFFSET  : usize = 0x0c;
+
+pub const BOOT_BLOCK_DISK_TYPE_SLICE   : std::ops::Range<usize>
+    = 0..BOOT_BLOCK_CHECKSUM_OFFSET;
+
+pub const BOOT_BLOCK_CHECKSUM_SLICE    : std::ops::Range<usize>
+    = BOOT_BLOCK_CHECKSUM_OFFSET..BOOT_BLOCK_ROOT_BLOCK_OFFSET;
+
+pub const BOOT_BLOCK_ROOT_BLOCK_SLICE  : std::ops::Range<usize>
+    = BOOT_BLOCK_ROOT_BLOCK_OFFSET..BOOT_BLOCK_BOOT_CODE_OFFSET;
+
+pub const BOOT_BLOCK_BOOT_CODE_SLICE   : std::ops::Range<usize>
+    = BOOT_BLOCK_BOOT_CODE_OFFSET..2*BLOCK_SIZE;
 
 
 #[repr(u8)]
@@ -52,7 +69,7 @@ impl fmt::Display for CacheMode {
     }
 }
 
-fn verify_checksum(data: &[u8], expected: u32) -> Result<(), Error> {
+fn compute_checksum(data: &[u8]) -> u32 {
     let mut checksum = 0u32;
 
     for chunk in data.chunks(4) {
@@ -66,7 +83,11 @@ fn verify_checksum(data: &[u8], expected: u32) -> Result<(), Error> {
         }
     }
 
-    if expected == !checksum {
+    !checksum
+}
+
+fn verify_checksum(data: &[u8], expected: u32) -> Result<(), Error> {
+    if compute_checksum(data) == expected {
         Err(Error::CorruptedImageFile)
     } else {
         Ok(())
@@ -141,6 +162,33 @@ impl BootBlock {
         self.flags = data[3];
         self.boot_code.copy_from_slice(&data[12..]);
         self.root_block_address = u32::from_be_bytes(data[8..12].try_into().unwrap());
+
+        Ok(())
+    }
+}
+
+impl BootBlock {
+    pub fn try_write_to_disk(&mut self, disk: &mut Disk) -> Result<(), Error> {
+        let mut data = [0u8; 2*BLOCK_SIZE];
+
+        data[BOOT_BLOCK_DISK_TYPE_SLICE].copy_from_slice(
+            &[0x44, 0x4f, 0x53, self.flags],
+        );
+        data[BOOT_BLOCK_ROOT_BLOCK_SLICE].copy_from_slice(
+            &self.root_block_address.to_be_bytes(),
+        );
+        data[BOOT_BLOCK_BOOT_CODE_SLICE].copy_from_slice(
+            &self.boot_code,
+        );
+
+        let checksum = compute_checksum(&data);
+
+        data[BOOT_BLOCK_CHECKSUM_SLICE].copy_from_slice(
+            &checksum.to_be_bytes(),
+        );
+
+        disk.block_mut(0)?.copy_from_slice(&data[..BLOCK_SIZE]);
+        disk.block_mut(1)?.copy_from_slice(&data[BLOCK_SIZE..]);
 
         Ok(())
     }
