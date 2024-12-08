@@ -1,7 +1,6 @@
 use std::fmt;
 
 use crate::disk::{Disk, BLOCK_SIZE};
-
 use crate::errors::Error;
 
 use super::constants::*;
