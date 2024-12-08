@@ -7,23 +7,6 @@ use crate::errors::Error;
 use super::constants::*;
 
 
-pub const BOOT_BLOCK_CHECKSUM_OFFSET   : usize = 0x04;
-pub const BOOT_BLOCK_ROOT_BLOCK_OFFSET : usize = 0x08;
-pub const BOOT_BLOCK_BOOT_CODE_OFFSET  : usize = 0x0c;
-
-pub const BOOT_BLOCK_DISK_TYPE_SLICE   : std::ops::Range<usize>
-    = 0..BOOT_BLOCK_CHECKSUM_OFFSET;
-
-pub const BOOT_BLOCK_CHECKSUM_SLICE    : std::ops::Range<usize>
-    = BOOT_BLOCK_CHECKSUM_OFFSET..BOOT_BLOCK_ROOT_BLOCK_OFFSET;
-
-pub const BOOT_BLOCK_ROOT_BLOCK_SLICE  : std::ops::Range<usize>
-    = BOOT_BLOCK_ROOT_BLOCK_OFFSET..BOOT_BLOCK_BOOT_CODE_OFFSET;
-
-pub const BOOT_BLOCK_BOOT_CODE_SLICE   : std::ops::Range<usize>
-    = BOOT_BLOCK_BOOT_CODE_OFFSET..2*BLOCK_SIZE;
-
-
 #[repr(u8)]
 pub enum FileSystemType {
     OFS = 0,

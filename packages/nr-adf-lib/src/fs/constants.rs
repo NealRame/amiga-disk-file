@@ -10,7 +10,24 @@ pub const TICKS_PER_SECOND                   : u32 = 50;
 pub const BLOCK_CHECKSUM_OFFSET              : usize = 0x14;
 
 // Boot block /////////////////////////////////////////////////////////////////
+pub const BOOT_BLOCK_CHECKSUM_OFFSET         : usize = 0x04;
+
+pub const BOOT_BLOCK_ROOT_BLOCK_OFFSET       : usize = 0x08;
+
+pub const BOOT_BLOCK_BOOT_CODE_OFFSET        : usize = 0x0c;
 pub const BOOT_BLOCK_BOOT_CODE_SIZE          : usize = 2*BLOCK_SIZE - 12;
+
+pub const BOOT_BLOCK_DISK_TYPE_SLICE         : std::ops::Range<usize>
+    = 0..BOOT_BLOCK_CHECKSUM_OFFSET;
+
+pub const BOOT_BLOCK_CHECKSUM_SLICE          : std::ops::Range<usize>
+    = BOOT_BLOCK_CHECKSUM_OFFSET..BOOT_BLOCK_ROOT_BLOCK_OFFSET;
+
+pub const BOOT_BLOCK_ROOT_BLOCK_SLICE        : std::ops::Range<usize>
+    = BOOT_BLOCK_ROOT_BLOCK_OFFSET..BOOT_BLOCK_BOOT_CODE_OFFSET;
+
+pub const BOOT_BLOCK_BOOT_CODE_SLICE         : std::ops::Range<usize>
+    = BOOT_BLOCK_BOOT_CODE_OFFSET..2*BLOCK_SIZE;
 
 // Root block /////////////////////////////////////////////////////////////////
 pub const ROOT_BLOCK_BITMAP_MAX_PAGES        : usize = 25;
