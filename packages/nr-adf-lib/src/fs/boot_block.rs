@@ -91,27 +91,6 @@ impl Default for BootBlock {
 }
 
 impl BootBlock {
-    pub fn try_read_from_disk(&mut self, disk: &Disk) -> Result<(), Error> {
-        let mut data = disk.read_blocks(0, 2)?;
-
-        if &data[0..3] != &[0x44, 0x4f, 0x53] { // DOS
-            return Err(Error::CorruptedImageFile);
-        }
-
-        let checksum = u32::from_be_bytes(data[4..8].try_into().unwrap());
-
-        data[4..8].fill(0);
-        verify_checksum(&data, checksum)?;
-
-        self.flags = data[3];
-        self.boot_code.copy_from_slice(&data[12..]);
-        self.root_block_address = u32::from_be_bytes(data[8..12].try_into().unwrap());
-
-        Ok(())
-    }
-}
-
-impl BootBlock {
     pub fn filesystem_type(&self) -> FileSystemType {
         if self.flags & 0x01 == 0 {
             FileSystemType::OFS
@@ -119,7 +98,6 @@ impl BootBlock {
             FileSystemType::FFS
         }
     }
-
 
     pub fn international_mode(&self) -> InternationalMode {
         if self.flags & 0x02 == 0 {
@@ -144,5 +122,26 @@ impl BootBlock {
 
     pub fn root_block_address(&self) -> usize {
         self.root_block_address as usize
+    }
+}
+
+impl BootBlock {
+    pub fn try_read_from_disk(&mut self, disk: &Disk) -> Result<(), Error> {
+        let mut data = disk.read_blocks(0, 2)?;
+
+        if &data[0..3] != &[0x44, 0x4f, 0x53] { // DOS
+            return Err(Error::CorruptedImageFile);
+        }
+
+        let checksum = u32::from_be_bytes(data[4..8].try_into().unwrap());
+
+        data[4..8].fill(0);
+        verify_checksum(&data, checksum)?;
+
+        self.flags = data[3];
+        self.boot_code.copy_from_slice(&data[12..]);
+        self.root_block_address = u32::from_be_bytes(data[8..12].try_into().unwrap());
+
+        Ok(())
     }
 }
