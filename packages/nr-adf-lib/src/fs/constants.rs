@@ -1,7 +1,10 @@
+use std::time::Duration;
+
 use crate::disk::BLOCK_SIZE;
 
-pub const SECONDS_PER_DAY: u64 = 3600*24;
-pub const SECONDS_PER_MINUTE: u64 = 60;
+// Time ///////////////////////////////////////////////////////////////////////
+pub const AMIGA_EPOCH_OFFSET                 : Duration = Duration::from_secs(252460800);
+pub const TICKS_PER_SECOND                   : u32 = 50;
 
 // Block //////////////////////////////////////////////////////////////////////
 pub const BLOCK_CHECKSUM_OFFSET              : usize = 0x14;

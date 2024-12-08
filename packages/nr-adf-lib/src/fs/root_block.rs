@@ -1,6 +1,7 @@
 use core::str;
 use std::time::{
     UNIX_EPOCH,
+    Duration,
     SystemTime,
 };
 
@@ -12,61 +13,36 @@ use super::block_type::*;
 use super::constants::*;
 
 
+fn date_triplet_to_system_time(days: u32, mins: u32, ticks: u32) -> SystemTime {
+    let seconds = ((days*24*60 + mins)*60 + ticks/TICKS_PER_SECOND) as u64;
+    UNIX_EPOCH + AMIGA_EPOCH_OFFSET + Duration::from_secs(seconds)
+}
+
+
 #[derive(Clone, Debug)]
 pub struct RootBlock {
-    pub block_primary_type: BlockPrimaryType,
-    pub block_secondary_type: BlockSecondaryType,
-
     pub volume_name: String,
 
-    pub hash_table_size: u32,
-    pub hash_table: [u32; ROOT_BLOCK_HASH_TABLE_MAX_SIZE],
+    pub root_creation_date: SystemTime,
+    pub root_alteration_date: SystemTime,
+    pub volume_alteration_date: SystemTime,
 
-    pub bitmap_flag: u32,
-    pub bitmap_pages: [u32; ROOT_BLOCK_BITMAP_MAX_PAGES],
-    pub bitmap_ext: u32,
+    block_primary_type: BlockPrimaryType,
+    block_secondary_type: BlockSecondaryType,
 
-    // last root alteration date
-    pub r_days: u32,
-    pub r_mins: u32,
-    pub r_ticks: u32,
+    hash_table_size: u32,
+    hash_table: [u32; ROOT_BLOCK_HASH_TABLE_MAX_SIZE],
 
-    // last disk alteration date
-    pub v_days: u32,
-    pub v_mins: u32,
-    pub v_ticks: u32,
+    bitmap_flag: u32,
+    bitmap_pages: [u32; ROOT_BLOCK_BITMAP_MAX_PAGES],
+    bitmap_ext: u32,
 
-    // filesystem creation date
-    pub c_days: u32,
-    pub c_mins: u32,
-    pub c_ticks: u32,
-
-    pub extension: u32,
+    extension: u32,
 }
 
 impl Default for RootBlock {
     fn default() -> Self {
-        // seconds since epoch
-        let seconds = SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .expect("SystemTime before UNIX EPOCH!")
-                .as_secs();
-
-        // days since epoch
-        let r_days = seconds/SECONDS_PER_DAY;
-
-        // mins past midnight
-        let r_mins = (seconds - r_days*SECONDS_PER_DAY)/SECONDS_PER_MINUTE;
-
-        // ticks past last minute
-        let r_ticks = (seconds - r_mins*SECONDS_PER_MINUTE)/50;
-
-        let mut disk_name = [0u8; ROOT_BLOCK_DISK_NAME_MAX_SIZE];
-
-        disk_name[0] = 0x44; // D
-        disk_name[1] = 0x49; // I
-        disk_name[2] = 0x53; // S
-        disk_name[4] = 0x4b; // K
+        let current_date = SystemTime::now();
 
         return Self {
             block_primary_type: BlockPrimaryType::Header,
@@ -81,20 +57,12 @@ impl Default for RootBlock {
 
             volume_name: String::from("VOLUME"),
 
-            r_days: r_days as u32,
-            r_mins: r_mins as u32,
-            r_ticks: r_ticks as u32,
-
-            v_days: r_days as u32,
-            v_mins: r_mins as u32,
-            v_ticks: r_ticks as u32,
-
-            c_days: r_days as u32,
-            c_mins: r_mins as u32,
-            c_ticks: r_ticks as u32,
+            root_creation_date: current_date,
+            root_alteration_date: current_date,
+            volume_alteration_date: current_date,
 
             extension: 0,
-        }
+        };
     }
 }
 
@@ -122,9 +90,16 @@ impl RootBlock {
         &mut self,
         br: &BlockReader,
     ) -> Result<(), Error> {
-        br.read_u32(ROOT_BLOCK_R_DAYS_OFFSET, &mut self.r_days)?;
-        br.read_u32(ROOT_BLOCK_R_MINS_OFFSET, &mut self.r_mins)?;
-        br.read_u32(ROOT_BLOCK_R_TICKS_OFFSET, &mut self.r_ticks)?;
+        let mut days = 0u32;
+        let mut mins = 0u32;
+        let mut ticks = 0u32;
+
+        br.read_u32(ROOT_BLOCK_R_DAYS_OFFSET, &mut days)?;
+        br.read_u32(ROOT_BLOCK_R_MINS_OFFSET, &mut mins)?;
+        br.read_u32(ROOT_BLOCK_R_TICKS_OFFSET, &mut ticks)?;
+
+        self.root_alteration_date = date_triplet_to_system_time(days, mins, ticks);
+
         Ok(())
     }
 
@@ -132,19 +107,33 @@ impl RootBlock {
         &mut self,
         br: &BlockReader,
     ) -> Result<(), Error> {
-        br.read_u32(ROOT_BLOCK_V_DAYS_OFFSET, &mut self.v_days)?;
-        br.read_u32(ROOT_BLOCK_V_MINS_OFFSET, &mut self.v_mins)?;
-        br.read_u32(ROOT_BLOCK_V_TICKS_OFFSET, &mut self.v_ticks)?;
+        let mut days = 0u32;
+        let mut mins = 0u32;
+        let mut ticks = 0u32;
+
+        br.read_u32(ROOT_BLOCK_V_DAYS_OFFSET, &mut days)?;
+        br.read_u32(ROOT_BLOCK_V_MINS_OFFSET, &mut mins)?;
+        br.read_u32(ROOT_BLOCK_V_TICKS_OFFSET, &mut ticks)?;
+
+        self.volume_alteration_date = date_triplet_to_system_time(days, mins, ticks);
+
         Ok(())
     }
 
-    fn try_read_fs_creation_date(
+    fn try_read_root_creation_date(
         &mut self,
         br: &BlockReader,
     ) -> Result<(), Error> {
-        br.read_u32(ROOT_BLOCK_C_DAYS_OFFSET, &mut self.c_days)?;
-        br.read_u32(ROOT_BLOCK_C_MINS_OFFSET, &mut self.c_mins)?;
-        br.read_u32(ROOT_BLOCK_C_TICKS_OFFSET, &mut self.c_ticks)?;
+        let mut days = 0u32;
+        let mut mins = 0u32;
+        let mut ticks = 0u32;
+
+        br.read_u32(ROOT_BLOCK_C_DAYS_OFFSET, &mut days)?;
+        br.read_u32(ROOT_BLOCK_C_MINS_OFFSET, &mut mins)?;
+        br.read_u32(ROOT_BLOCK_C_TICKS_OFFSET, &mut ticks)?;
+
+        self.root_creation_date = date_triplet_to_system_time(days, mins, ticks);
+
         Ok(())
     }
 
@@ -198,7 +187,7 @@ impl RootBlock {
 
         self.try_read_root_alteration_date(&reader)?;
         self.try_read_disk_alteration_date(&reader)?;
-        self.try_read_fs_creation_date(&reader)?;
+        self.try_read_root_creation_date(&reader)?;
 
         self.try_read_extension(&reader)?;
 
