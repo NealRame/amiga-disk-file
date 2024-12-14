@@ -23,18 +23,17 @@ pub struct Args {
     pub floppy_disk_type: ArgDiskType,
 
     /// Overwrite existing file
-    #[arg(long, short, default_value = "false", action = clap::ArgAction::SetTrue)]
+    #[arg(long, short, default_value = "false")]
     pub force_overwrite: bool,
 }
 
 pub fn run(args: &Args) -> Result<()> {
-    // let disk_type: DiskType = args.floppy_disk_type.into();
     let disk = Disk::create(args.floppy_disk_type.into());
 
     if args.output_file_path.exists() && !args.force_overwrite {
-        return Err(anyhow!("output file already exists!"));
+        Err(anyhow!("output file already exists!"))
+    } else {
+        fs::write(&args.output_file_path, disk.data())?;
+        Ok(())
     }
-
-    fs::write(&args.output_file_path, disk.data())?;
-    Ok(())
 }
