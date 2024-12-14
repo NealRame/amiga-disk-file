@@ -1,6 +1,10 @@
 use std::fmt;
 
-use crate::disk::{Disk, BLOCK_SIZE};
+use crate::disk::{
+    BLOCK_SIZE,
+    Disk,
+    DiskType,
+};
 use crate::errors::Error;
 
 use super::constants::*;
@@ -9,7 +13,7 @@ use super::constants::*;
 #[repr(u8)]
 pub enum FileSystemType {
     OFS = 0,
-    FFS = 1,
+    FFS = 0x01,
 }
 
 impl fmt::Display for FileSystemType {
@@ -24,7 +28,7 @@ impl fmt::Display for FileSystemType {
 #[repr(u8)]
 pub enum InternationalMode {
     No  = 0,
-    Yes = 1,
+    Yes = 0x02,
 }
 
 impl fmt::Display for InternationalMode {
@@ -39,7 +43,7 @@ impl fmt::Display for InternationalMode {
 #[repr(u8)]
 pub enum CacheMode {
     No  = 0,
-    Yes = 1,
+    Yes = 0x04,
 }
 
 impl fmt::Display for CacheMode {
@@ -172,5 +176,58 @@ impl BootBlock {
         disk.block_mut(1)?.copy_from_slice(&data[BLOCK_SIZE..]);
 
         Ok(())
+    }
+}
+
+pub struct BootBlockBuilder {
+    boot_code: [u8; BOOT_BLOCK_BOOT_CODE_SIZE],
+    flags: u8,
+    root_block_address: u32,
+}
+
+
+impl BootBlockBuilder {
+    pub fn new(disk_type: DiskType) -> Self {
+        let boot_code = [0u8; BOOT_BLOCK_BOOT_CODE_SIZE];
+        let root_block_address = ((disk_type as usize)/2) as u32;
+        let flags = 0;
+
+        Self {
+            boot_code,
+            flags,
+            root_block_address,
+        }
+    }
+
+    pub fn width_filesystem_type(
+        &mut self,
+        filesystem_type: FileSystemType,
+    ) -> &mut Self {
+        self.flags |= filesystem_type as u8;
+        self
+    }
+
+    pub fn with_international_mode(
+        &mut self,
+        international_mode: InternationalMode,
+    )-> &mut Self {
+        self.flags |= international_mode as u8;
+        self
+    }
+
+    pub fn with_cache_mode(
+        &mut self,
+        cache_mode: CacheMode,
+    ) -> &mut Self {
+        self.flags |= cache_mode as u8;
+        self
+    }
+
+    pub fn build(self) -> BootBlock {
+        BootBlock {
+            boot_code: self.boot_code,
+            flags: self.flags,
+            root_block_address: self.root_block_address,
+        }
     }
 }
