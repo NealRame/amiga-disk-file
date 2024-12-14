@@ -4,6 +4,8 @@ use std::fmt;
 pub enum Error {
     CorruptedImageFile,
 
+    InvalidFilesystemType,
+
     InvalidHeaderType(u32),
 
     DiskInvalidLBAAddressError(usize),

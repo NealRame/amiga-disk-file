@@ -1,4 +1,5 @@
 use std::fmt;
+use std::str::FromStr;
 
 use crate::disk::{
     BLOCK_SIZE,
@@ -10,21 +11,35 @@ use crate::errors::Error;
 use super::constants::*;
 
 
+#[derive(Clone, Copy, Debug)]
 #[repr(u8)]
-pub enum FileSystemType {
+pub enum FilesystemType {
     OFS = 0,
     FFS = 0x01,
 }
 
-impl fmt::Display for FileSystemType {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            FileSystemType::OFS => write!(f, "OFS"),
-            FileSystemType::FFS => write!(f, "FFS"),
+impl FromStr for FilesystemType {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "ofs" => Ok(FilesystemType::OFS),
+            "ffs" => Ok(FilesystemType::FFS),
+            _ => Err(Error::InvalidFilesystemType),
         }
     }
 }
 
+impl fmt::Display for FilesystemType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            FilesystemType::OFS => write!(f, "OFS"),
+            FilesystemType::FFS => write!(f, "FFS"),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
 #[repr(u8)]
 pub enum InternationalMode {
     No  = 0,
@@ -40,6 +55,7 @@ impl fmt::Display for InternationalMode {
     }
 }
 
+#[derive(Clone, Copy, Debug)]
 #[repr(u8)]
 pub enum CacheMode {
     No  = 0,
@@ -98,11 +114,11 @@ impl Default for BootBlock {
 }
 
 impl BootBlock {
-    pub fn filesystem_type(&self) -> FileSystemType {
+    pub fn filesystem_type(&self) -> FilesystemType {
         if self.flags & 0x01 == 0 {
-            FileSystemType::OFS
+            FilesystemType::OFS
         } else {
-            FileSystemType::FFS
+            FilesystemType::FFS
         }
     }
 
@@ -153,7 +169,7 @@ impl BootBlock {
 }
 
 impl BootBlock {
-    pub fn try_write_to_disk(&mut self, disk: &mut Disk) -> Result<(), Error> {
+    pub fn try_write_to_disk(&self, disk: &mut Disk) -> Result<(), Error> {
         let mut data = [0u8; 2*BLOCK_SIZE];
 
         data[BOOT_BLOCK_DISK_TYPE_SLICE].copy_from_slice(
@@ -179,12 +195,12 @@ impl BootBlock {
     }
 }
 
+#[derive(Clone, Copy, Debug)]
 pub struct BootBlockBuilder {
     boot_code: [u8; BOOT_BLOCK_BOOT_CODE_SIZE],
     flags: u8,
     root_block_address: u32,
 }
-
 
 impl BootBlockBuilder {
     pub fn new(disk_type: DiskType) -> Self {
@@ -201,7 +217,7 @@ impl BootBlockBuilder {
 
     pub fn width_filesystem_type(
         &mut self,
-        filesystem_type: FileSystemType,
+        filesystem_type: FilesystemType,
     ) -> &mut Self {
         self.flags |= filesystem_type as u8;
         self
