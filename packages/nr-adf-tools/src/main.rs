@@ -8,8 +8,11 @@ use clap::{Parser, Subcommand};
 
 #[derive(Subcommand)]
 pub enum Commands {
+    /// Create a new disk file
     Create(create::Args),
+    /// Format a given disk file
     Format(format::Args),
+    /// Get info about a given disk file
     Info(info::Args),
 }
 
