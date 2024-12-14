@@ -28,14 +28,12 @@ impl Disk {
     fn block_bounds(
         &self,
         addr: LBAAddress,
+        count: usize,
     ) -> Result<(usize, usize), Error> {
-        if addr < self.block_count() {
-            let begin = addr*BLOCK_SIZE;
-            let end = begin + BLOCK_SIZE;
-
-            Ok((begin, end))
-        } else {
+        if addr >= self.block_count() || addr + count > self.block_count() {
             Err(Error::DiskInvalidLBAAddressError(addr))
+        } else {
+            Ok((addr*BLOCK_SIZE, (addr + count)*BLOCK_SIZE))
         }
     }
 }
@@ -90,7 +88,7 @@ impl Disk {
         &self,
         addr: LBAAddress,
     ) -> Result<&[u8], Error> {
-        let (begin, end) = self.block_bounds(addr)?;
+        let (begin, end) = self.block_bounds(addr, 1)?;
 
         Ok(&self.disk_data[begin..end])
     }
@@ -99,7 +97,7 @@ impl Disk {
         &mut self,
         addr: LBAAddress,
     ) -> Result<&mut [u8], Error> {
-        let (begin, end) = self.block_bounds(addr)?;
+        let (begin, end) = self.block_bounds(addr, 1)?;
 
         Ok(&mut self.disk_data[begin..end])
     }
@@ -114,12 +112,12 @@ impl Disk {
 
     pub fn read_blocks(
         &self,
-        block_addr: LBAAddress,
-        block_count: usize,
+        addr: LBAAddress,
+        count: usize,
     ) -> Result<Vec<u8>, Error> {
-        let first = block_addr;
-        let last = block_addr + block_count;
-        let mut data = Vec::with_capacity(block_addr*BLOCK_SIZE);
+        let first = addr;
+        let last = addr + count;
+        let mut data = Vec::with_capacity(addr*BLOCK_SIZE);
 
         for addr in first..last {
             data.extend_from_slice(self.block(addr)?);
