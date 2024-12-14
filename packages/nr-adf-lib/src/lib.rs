@@ -2,6 +2,7 @@ pub mod disk;
 pub mod errors;
 pub mod fs;
 pub mod read;
+pub mod prelude;
 
 
 #[cfg(test)]
