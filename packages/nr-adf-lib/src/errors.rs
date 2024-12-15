@@ -13,6 +13,7 @@ pub enum Error {
     DiskInvalidSizeError(usize),
 
     DiskReadError,
+    DiskWriteError,
 }
 
 impl std::error::Error for Error {}
