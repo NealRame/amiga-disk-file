@@ -72,17 +72,15 @@ impl AmigaDosFormater {
         mut disk: Disk,
         volume_name: &str,
     ) -> Result<AmigaDos, Error> {
-        let boot_block =
-            BootBlockBuilder::new(disk.disk_type())
-                .width_filesystem_type(self.filesystem_type)
-                .with_cache_mode(self.filesystem_cache_mode)
-                .with_international_mode(self.filesystem_intl_mode)
-                .build();
-        boot_block.try_write_to_disk(&mut disk)?;
+        BootBlockBuilder::new(disk.disk_type())
+            .width_filesystem_type(self.filesystem_type)
+            .with_cache_mode(self.filesystem_cache_mode)
+            .with_international_mode(self.filesystem_intl_mode)
+            .build()
+            .try_write_to_disk(&mut disk)?;
 
-        let mut root_block = RootBlock::default();
-        root_block.volume_name = volume_name.into();
-        root_block.try_write_to_disk(&mut disk)?;
+        RootBlock::with_volume_name(volume_name)
+            .try_write_to_disk(&mut disk)?;
 
         Ok(AmigaDos {
             disk
