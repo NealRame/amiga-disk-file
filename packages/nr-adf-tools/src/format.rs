@@ -36,16 +36,12 @@ pub struct Args {
 }
 
 pub fn run(args: &Args) -> Result<()> {
-    let mut disk = read_disk_file(&args.disk_file_path)?;
+    let disk = read_disk_file(&args.disk_file_path)?;
     let fs =
         AmigaDosFormater::default()
             .width_filesystem_type(args.filesystem_type)
-            .format(disk.disk_type(), &args.volume_name);
+            .format(disk, &args.volume_name)?;
 
-    fs.boot_block.try_write_to_disk(&mut disk)?;
-    fs.root_block.try_write_to_disk(&mut disk)?;
-
-    write_disk_file(&args.disk_file_path, &disk)?;
-
+    write_disk_file(&args.disk_file_path, fs.disk())?;
     Ok(())
 }

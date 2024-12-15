@@ -29,23 +29,26 @@ pub fn run(args: &Args) -> Result<()> {
     let disk_data = fs::read(&args.input_file_path)?;
     let disk = Disk::try_create_with_data(disk_data)?;
 
-    let fs = AmigaDos::try_from(&disk)?;
+    let fs = AmigaDos::try_from(disk)?;
 
-    println!("           Volume name: {}", fs.root_block.volume_name);
+    let boot_block = fs.boot_block()?;
+    let root_block = fs.root_block()?;
+
+    println!("           Volume name: {}", root_block.volume_name);
     println!("           Volume type: {}, {}, {}",
-        fs.boot_block.filesystem_type(),
-        fs.boot_block.international_mode(),
-        fs.boot_block.cache_mode(),
+        boot_block.filesystem_type(),
+        boot_block.international_mode(),
+        boot_block.cache_mode(),
     );
 
     println!("Volume alteration date: {}",
-        system_time_to_str(fs.root_block.root_alteration_date)
+        system_time_to_str(root_block.root_alteration_date)
     );
     println!("    Root creation date: {}",
-        system_time_to_str(fs.root_block.root_creation_date)
+        system_time_to_str(root_block.root_creation_date)
     );
     println!("  Root alteration date: {}",
-        system_time_to_str(fs.root_block.root_alteration_date)
+        system_time_to_str(root_block.root_alteration_date)
     );
 
     Ok(())

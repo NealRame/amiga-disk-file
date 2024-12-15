@@ -1,5 +1,4 @@
 use crate::disk::Disk;
-use crate::disk::DiskType;
 use crate::errors::Error;
 
 use super::boot_block::*;
@@ -7,24 +6,40 @@ use super::root_block::*;
 
 
 pub struct AmigaDos {
-    pub boot_block: BootBlock,
-    pub root_block: RootBlock,
+    disk: Disk,
 }
 
-impl TryFrom<&Disk> for AmigaDos {
+impl TryFrom<Disk> for AmigaDos {
     type Error = Error;
 
-    fn try_from(disk: &Disk) -> Result<Self, Self::Error> {
+    fn try_from(disk: Disk) -> Result<Self, Self::Error> {
         let mut boot_block = BootBlock::default();
         let mut root_block = RootBlock::default();
 
-        boot_block.try_read_from_disk(disk)?;
-        root_block.try_read_from_disk(disk)?;
+        boot_block.try_read_from_disk(&disk)?;
+        root_block.try_read_from_disk(&disk)?;
 
-        Ok(AmigaDos {
-            boot_block,
-            root_block,
-        })
+        Ok(AmigaDos { disk })
+    }
+}
+
+impl AmigaDos {
+    pub fn disk(&self) -> &Disk {
+        &self.disk
+    }
+
+    pub fn root_block(&self) -> Result<RootBlock, Error> {
+        let mut root_block = RootBlock::default();
+
+        root_block.try_read_from_disk(&self.disk)?;
+        Ok(root_block)
+    }
+
+    pub fn boot_block(&self) -> Result<BootBlock, Error> {
+        let mut boot_block = BootBlock::default();
+
+        boot_block.try_read_from_disk(&self.disk)?;
+        Ok(boot_block)
     }
 }
 
@@ -62,22 +77,23 @@ impl AmigaDosFormater {
 
     pub fn format(
         &self,
-        disk_type: DiskType,
-        disk_name: &str,
-    ) -> AmigaDos {
-        let mut root_block = RootBlock::default();
+        mut disk: Disk,
+        volume_name: &str,
+    ) -> Result<AmigaDos, Error> {
         let boot_block =
-            BootBlockBuilder::new(disk_type)
+            BootBlockBuilder::new(disk.disk_type())
                 .width_filesystem_type(self.filesystem_type)
                 .with_cache_mode(self.filesystem_cache_mode)
                 .with_international_mode(self.filesystem_intl_mode)
                 .build();
+        boot_block.try_write_to_disk(&mut disk)?;
 
-        root_block.volume_name = disk_name.into();
+        let mut root_block = RootBlock::default();
+        root_block.volume_name = volume_name.into();
+        root_block.try_write_to_disk(&mut disk)?;
 
-        AmigaDos {
-            boot_block,
-            root_block,
-        }
+        Ok(AmigaDos {
+            disk
+        })
     }
 }
