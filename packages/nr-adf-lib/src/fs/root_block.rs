@@ -1,4 +1,5 @@
 use core::str;
+
 use std::time::{
     UNIX_EPOCH,
     Duration,
@@ -13,6 +14,30 @@ use super::block_type::*;
 use super::constants::*;
 
 
+fn date_triplet_from_system_time(date_time: &SystemTime) -> (u32, u32, u32) {
+    const SECONDS_PER_DAYS: u32 = 24*60*60;
+    const SECONDS_PER_MINS: u32 = 60;
+
+    match date_time.duration_since(UNIX_EPOCH + AMIGA_EPOCH_OFFSET) {
+        Ok(duration) => {
+            let seconds = duration.as_secs() as u32;
+            let (days, seconds) = (
+                seconds/SECONDS_PER_DAYS,
+                seconds%SECONDS_PER_DAYS,
+            );
+            let (mins, seconds) = (
+                seconds/SECONDS_PER_MINS,
+                seconds%SECONDS_PER_MINS,
+            );
+
+            (days, mins, seconds*TICKS_PER_SECOND)
+        },
+        _ => {
+            (0, 0, 0)
+        }
+    }
+}
+
 fn date_triplet_to_system_time(days: u32, mins: u32, ticks: u32) -> SystemTime {
     let seconds = ((days*24*60 + mins)*60 + ticks/TICKS_PER_SECOND) as u64;
     UNIX_EPOCH + AMIGA_EPOCH_OFFSET + Duration::from_secs(seconds)
@@ -26,9 +51,6 @@ pub struct RootBlock {
     pub root_creation_date: SystemTime,
     pub root_alteration_date: SystemTime,
     pub volume_alteration_date: SystemTime,
-
-    block_primary_type: BlockPrimaryType,
-    block_secondary_type: BlockSecondaryType,
 
     hash_table_size: u32,
     hash_table: [u32; ROOT_BLOCK_HASH_TABLE_MAX_SIZE],
@@ -45,9 +67,6 @@ impl Default for RootBlock {
         let current_date = SystemTime::now();
 
         return Self {
-            block_primary_type: BlockPrimaryType::Header,
-            block_secondary_type: BlockSecondaryType::RootDir,
-
             hash_table_size: 0,
             hash_table: [0u32; ROOT_BLOCK_HASH_TABLE_MAX_SIZE],
 
@@ -71,9 +90,9 @@ impl RootBlock {
         &mut self,
         br: &BlockReader,
     ) -> Result<(), Error> {
-        br.read_u32(ROOT_BLOCK_BITMAP_FLAG_OFFSET, &mut self.bitmap_flag)?;
+        self.bitmap_flag = br.read_u32(ROOT_BLOCK_BITMAP_FLAG_OFFSET)?;
+        self.bitmap_ext = br.read_u32(ROOT_BLOCK_BITMAP_EXTENSION_OFFSET)?;
         br.read_u32_array(ROOT_BLOCK_BITMAP_PAGES_OFFSET, &mut self.bitmap_pages)?;
-        br.read_u32(ROOT_BLOCK_BITMAP_EXTENSION_OFFSET, &mut self.bitmap_ext)?;
         Ok(())
     }
 
@@ -81,25 +100,8 @@ impl RootBlock {
         &mut self,
         br: &BlockReader,
     ) -> Result<(), Error> {
-        br.read_u32(ROOT_BLOCK_HASH_TABLE_SIZE_OFFSET, &mut self.hash_table_size)?;
+        self.hash_table_size = br.read_u32(ROOT_BLOCK_HASH_TABLE_SIZE_OFFSET)?;
         br.read_u32_array(ROOT_BLOCK_HASH_TABLE_OFFSET, &mut self.hash_table)?;
-        Ok(())
-    }
-
-    fn try_read_root_alteration_date(
-        &mut self,
-        br: &BlockReader,
-    ) -> Result<(), Error> {
-        let mut days = 0u32;
-        let mut mins = 0u32;
-        let mut ticks = 0u32;
-
-        br.read_u32(ROOT_BLOCK_R_DAYS_OFFSET, &mut days)?;
-        br.read_u32(ROOT_BLOCK_R_MINS_OFFSET, &mut mins)?;
-        br.read_u32(ROOT_BLOCK_R_TICKS_OFFSET, &mut ticks)?;
-
-        self.root_alteration_date = date_triplet_to_system_time(days, mins, ticks);
-
         Ok(())
     }
 
@@ -107,16 +109,23 @@ impl RootBlock {
         &mut self,
         br: &BlockReader,
     ) -> Result<(), Error> {
-        let mut days = 0u32;
-        let mut mins = 0u32;
-        let mut ticks = 0u32;
-
-        br.read_u32(ROOT_BLOCK_V_DAYS_OFFSET, &mut days)?;
-        br.read_u32(ROOT_BLOCK_V_MINS_OFFSET, &mut mins)?;
-        br.read_u32(ROOT_BLOCK_V_TICKS_OFFSET, &mut ticks)?;
+        let days = br.read_u32(ROOT_BLOCK_V_DAYS_OFFSET)?;
+        let mins = br.read_u32(ROOT_BLOCK_V_MINS_OFFSET)?;
+        let ticks = br.read_u32(ROOT_BLOCK_V_TICKS_OFFSET)?;
 
         self.volume_alteration_date = date_triplet_to_system_time(days, mins, ticks);
+        Ok(())
+    }
 
+    fn try_read_root_alteration_date(
+        &mut self,
+        br: &BlockReader,
+    ) -> Result<(), Error> {
+        let days = br.read_u32(ROOT_BLOCK_R_DAYS_OFFSET)?;
+        let mins = br.read_u32(ROOT_BLOCK_R_MINS_OFFSET)?;
+        let ticks = br.read_u32(ROOT_BLOCK_R_TICKS_OFFSET)?;
+
+        self.root_alteration_date = date_triplet_to_system_time(days, mins, ticks);
         Ok(())
     }
 
@@ -124,24 +133,11 @@ impl RootBlock {
         &mut self,
         br: &BlockReader,
     ) -> Result<(), Error> {
-        let mut days = 0u32;
-        let mut mins = 0u32;
-        let mut ticks = 0u32;
-
-        br.read_u32(ROOT_BLOCK_C_DAYS_OFFSET, &mut days)?;
-        br.read_u32(ROOT_BLOCK_C_MINS_OFFSET, &mut mins)?;
-        br.read_u32(ROOT_BLOCK_C_TICKS_OFFSET, &mut ticks)?;
+        let days = br.read_u32(ROOT_BLOCK_C_DAYS_OFFSET)?;
+        let mins = br.read_u32(ROOT_BLOCK_C_MINS_OFFSET)?;
+        let ticks = br.read_u32(ROOT_BLOCK_C_TICKS_OFFSET)?;
 
         self.root_creation_date = date_triplet_to_system_time(days, mins, ticks);
-
-        Ok(())
-    }
-
-    fn try_read_extension(
-        &mut self,
-        br: &BlockReader,
-    ) -> Result<(), Error> {
-        br.read_u32(ROOT_BLOCK_EXTENSION_OFFSET, &mut self.extension)?;
         Ok(())
     }
 
@@ -149,17 +145,10 @@ impl RootBlock {
         &mut self,
         br: &BlockReader,
     ) -> Result<(), Error> {
-        let mut name =  [0; ROOT_BLOCK_DISK_NAME_MAX_SIZE];
-        let mut name_size = 0;
+        let mut name = [0u8; ROOT_BLOCK_DISK_NAME_MAX_SIZE];
+        let name_size = br.read_u8(ROOT_BLOCK_VOLUME_NAME_SIZE_OFFSET)?;
 
-        br.read_u8(
-            ROOT_BLOCK_VOLUME_NAME_SIZE_OFFSET,
-            &mut name_size,
-        )?;
-        br.read_u8_array(
-            ROOT_BLOCK_VOLUME_NAME_OFFSET,
-            &mut name,
-        )?;
+        br.read_u8_array(ROOT_BLOCK_VOLUME_NAME_OFFSET, &mut name)?;
 
         if let Ok(name) = str::from_utf8(&name[..name_size as usize]) {
             self.volume_name = name.into();
@@ -170,6 +159,14 @@ impl RootBlock {
         Ok(())
     }
 
+    fn try_read_extension(
+        &mut self,
+        br: &BlockReader,
+    ) -> Result<(), Error> {
+        self.extension = br.read_u32(ROOT_BLOCK_EXTENSION_OFFSET)?;
+        Ok(())
+    }
+
     pub fn try_read_from_disk(
         &mut self,
         disk: &Disk,
@@ -177,19 +174,132 @@ impl RootBlock {
         let addr = disk.block_count()/2;
         let reader = BlockReader::try_from_disk(disk, addr)?;
 
-        reader.read_block_primary_type(&mut self.block_primary_type)?;
-        reader.read_block_secondary_type(&mut self.block_secondary_type)?;
+        reader.verify_checksum()?;
+        reader.verify_block_primary_type(BlockPrimaryType::Header)?;
+        reader.verify_block_secondary_type(BlockSecondaryType::RootDir)?;
 
         self.try_read_bitmap(&reader)?;
         self.try_read_hash_table(&reader)?;
-
         self.try_read_volume_name(&reader)?;
-
         self.try_read_root_alteration_date(&reader)?;
         self.try_read_disk_alteration_date(&reader)?;
         self.try_read_root_creation_date(&reader)?;
-
         self.try_read_extension(&reader)?;
+
+        Ok(())
+    }
+}
+
+impl RootBlock {
+    fn try_write_bitmap(
+        &self,
+        bw: &mut BlockWriter,
+    ) -> Result<(), Error> {
+        bw.write_u32(ROOT_BLOCK_BITMAP_FLAG_OFFSET, self.bitmap_flag)?;
+        bw.write_u32_array(ROOT_BLOCK_BITMAP_PAGES_OFFSET, &self.bitmap_pages)?;
+        Ok(())
+
+    }
+
+    fn try_write_hash_table(
+        &self,
+        bw: &mut BlockWriter,
+    ) -> Result<(), Error> {
+        bw.write_u32(ROOT_BLOCK_HASH_TABLE_SIZE_OFFSET, self.hash_table_size)?;
+        bw.write_u32_array(ROOT_BLOCK_HASH_TABLE_OFFSET, &self.hash_table)?;
+        Ok(())
+    }
+
+    fn try_write_disk_alteration_date(
+        &self,
+        bw: &mut BlockWriter,
+    ) -> Result<(), Error> {
+        let (
+            days,
+            mins,
+            ticks,
+        ) = date_triplet_from_system_time(&self.root_alteration_date);
+
+        bw.write_u32(ROOT_BLOCK_V_DAYS_OFFSET, days)?;
+        bw.write_u32(ROOT_BLOCK_V_MINS_OFFSET, mins)?;
+        bw.write_u32(ROOT_BLOCK_V_TICKS_OFFSET, ticks)?;
+
+        Ok(())
+    }
+
+    fn try_write_root_alteration_date(
+        &self,
+        bw: &mut BlockWriter,
+    ) -> Result<(), Error> {
+        let (
+            days,
+            mins,
+            ticks,
+        ) = date_triplet_from_system_time(&self.root_alteration_date);
+
+        bw.write_u32(ROOT_BLOCK_R_DAYS_OFFSET, days)?;
+        bw.write_u32(ROOT_BLOCK_R_MINS_OFFSET, mins)?;
+        bw.write_u32(ROOT_BLOCK_R_TICKS_OFFSET, ticks)?;
+
+        Ok(())
+    }
+
+    fn try_write_root_creation_date(
+        &self,
+        bw: &mut BlockWriter,
+    ) -> Result<(), Error> {
+        let (
+            days,
+            mins,
+            ticks,
+        ) = date_triplet_from_system_time(&self.root_creation_date);
+
+        bw.write_u32(ROOT_BLOCK_C_DAYS_OFFSET, days)?;
+        bw.write_u32(ROOT_BLOCK_C_MINS_OFFSET, mins)?;
+        bw.write_u32(ROOT_BLOCK_C_TICKS_OFFSET, ticks)?;
+
+        Ok(())
+    }
+
+    fn try_write_volume_name(
+        &self,
+        bw: &mut BlockWriter,
+    ) -> Result<(), Error> {
+        let name = self.volume_name.as_bytes();
+        let name_size = usize::min(name.len(), ROOT_BLOCK_DISK_NAME_MAX_SIZE);
+
+        bw.write_u8(ROOT_BLOCK_VOLUME_NAME_SIZE_OFFSET, name_size as u8)?;
+        bw.write_u8_array(ROOT_BLOCK_VOLUME_NAME_OFFSET, &name[..name_size])?;
+
+        Ok(())
+    }
+
+    fn try_write_extension(
+        &self,
+        bw: &mut BlockWriter,
+    ) -> Result<(), Error> {
+        bw.write_u32(ROOT_BLOCK_EXTENSION_OFFSET, self.extension)?;
+        Ok(())
+    }
+
+    pub fn try_write_to_disk(
+        &self,
+        disk: &mut Disk,
+    ) -> Result<(), Error> {
+        let addr = disk.block_count()/2;
+        let mut writer = BlockWriter::try_from_disk(disk, addr)?;
+
+        self.try_write_bitmap(&mut writer)?;
+        self.try_write_hash_table(&mut writer)?;
+        self.try_write_volume_name(&mut writer)?;
+        self.try_write_disk_alteration_date(&mut writer)?;
+        self.try_write_root_alteration_date(&mut writer)?;
+        self.try_write_root_creation_date(&mut writer)?;
+        self.try_write_extension(&mut writer)?;
+
+        writer.write_block_primary_type(BlockPrimaryType::Header)?;
+        writer.write_block_secondary_type(BlockSecondaryType::RootDir)?;
+        writer.write_checksum()?;
 
         Ok(())
     }

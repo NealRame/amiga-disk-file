@@ -1,20 +1,20 @@
 use crate::disk::Disk;
+use crate::disk::DiskType;
 use crate::errors::Error;
-use crate::fs::boot_block::BootBlock;
 
-use super::root_block::RootBlock;
+use super::boot_block::*;
+use super::root_block::*;
 
 
-pub struct AmigaDos<'disk> {
-    pub disk: &'disk Disk,
+pub struct AmigaDos {
     pub boot_block: BootBlock,
     pub root_block: RootBlock,
 }
 
-impl<'disk> TryFrom<&'disk Disk> for AmigaDos<'disk> {
+impl TryFrom<&Disk> for AmigaDos {
     type Error = Error;
 
-    fn try_from(disk: &'disk Disk) -> Result<Self, Self::Error> {
+    fn try_from(disk: &Disk) -> Result<Self, Self::Error> {
         let mut boot_block = BootBlock::default();
         let mut root_block = RootBlock::default();
 
@@ -22,29 +22,62 @@ impl<'disk> TryFrom<&'disk Disk> for AmigaDos<'disk> {
         root_block.try_read_from_disk(disk)?;
 
         Ok(AmigaDos {
-            disk,
             boot_block,
             root_block,
         })
     }
 }
 
-// impl<'disk> AmigaDos<'disk> {
-//     pub fn init(disk: &'disk mut Disk) -> Result<Self, Error> {
-//         let bk0 = disk.block_mut(0).or(Err(Error::DiskError))?;
+#[derive(Clone, Debug, Default)]
+pub struct AmigaDosFormater {
+    filesystem_type: FilesystemType,
+    filesystem_cache_mode: CacheMode,
+    filesystem_intl_mode: InternationalMode,
+}
 
-//         bk0.fill(0);
+impl AmigaDosFormater {
+    pub fn width_filesystem_type(
+        &mut self,
+        filesystem_type: FilesystemType,
+    ) -> &mut Self {
+        self.filesystem_type = filesystem_type;
+        self
+    }
 
-//         // OFS & NO_INTL & NO_DIRC
-//         (&mut bk0[0.. 4]).write_all(&[0x44, 0x4f, 0x53, 0]).or(Err(Error::DiskError))?;
-//         (&mut bk0[8..12]).write_all(& 880u32.to_be_bytes()).or(Err(Error::DiskError))?;
+    pub fn with_international_mode(
+        &mut self,
+        international_mode: InternationalMode,
+    )-> &mut Self {
+        self.filesystem_intl_mode = international_mode;
+        self
+    }
 
-//         disk.block_mut(1)
-//             .and_then(|bk| Ok(bk.fill(0)))
-//             .or(Err(Error::DiskError))?;
+    pub fn with_cache_mode(
+        &mut self,
+        cache_mode: CacheMode,
+    ) -> &mut Self {
+        self.filesystem_cache_mode = cache_mode;
+        self
+    }
 
-//         return Ok(Self {
-//             disk
-//         })
-//     }
-// }
+    pub fn format(
+        &self,
+        disk_type: DiskType,
+        disk_name: &str,
+    ) -> AmigaDos {
+        let mut root_block = RootBlock::default();
+        let boot_block =
+            BootBlockBuilder::new(disk_type)
+                .width_filesystem_type(self.filesystem_type)
+                .with_cache_mode(self.filesystem_cache_mode)
+                .with_international_mode(self.filesystem_intl_mode)
+                .build();
+
+        root_block.volume_name = disk_name.into();
+
+        AmigaDos {
+            boot_block,
+            root_block,
+        }
+    }
+}

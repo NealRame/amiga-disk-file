@@ -7,7 +7,11 @@ pub const AMIGA_EPOCH_OFFSET                 : Duration = Duration::from_secs(25
 pub const TICKS_PER_SECOND                   : u32 = 50;
 
 // Block //////////////////////////////////////////////////////////////////////
+pub const BLOCK_PRIMARY_TYPE_OFFSET          : usize = 0;
+pub const BLOCK_SECONDARY_TYPE_OFFSET        : usize = BLOCK_SIZE - 4;
+
 pub const BLOCK_CHECKSUM_OFFSET              : usize = 0x14;
+
 
 // Boot block /////////////////////////////////////////////////////////////////
 pub const BOOT_BLOCK_CHECKSUM_OFFSET         : usize = 0x04;

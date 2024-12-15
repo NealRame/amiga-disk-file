@@ -1,7 +1,7 @@
 use crate::errors::Error;
 
 #[repr(u32)]
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum BlockPrimaryType {
     Header = 2,
     Data   = 8,
@@ -28,13 +28,13 @@ impl TryFrom<u32> for BlockPrimaryType {
             _ if value == BlockPrimaryType::List.into() => {
                 Ok(BlockPrimaryType::List)
             },
-            _  => Err(Error::InvalidHeaderType(value)),
+            _  => Err(Error::InvalidFilesystemBlockPrimaryTypeError(value)),
         }
     }
 }
 
 #[repr(u32)]
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum BlockSecondaryType {
     RootDir           = 1,
     Directory         = 2,
@@ -73,7 +73,7 @@ impl TryFrom<u32> for BlockSecondaryType {
             _ if value == BlockSecondaryType::File.into() => {
                 Ok(BlockSecondaryType::File)
             },
-            _  => Err(Error::InvalidHeaderType(value)),
+            _  => Err(Error::InvalidFilesystemBlockSecondaryTypeError(value)),
         }
     }
 }

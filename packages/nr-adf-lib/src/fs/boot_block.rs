@@ -18,6 +18,12 @@ pub enum FilesystemType {
     FFS = 0x01,
 }
 
+impl Default for FilesystemType {
+    fn default() -> Self {
+        FilesystemType::OFS
+    }
+}
+
 impl FromStr for FilesystemType {
     type Err = Error;
 
@@ -25,7 +31,7 @@ impl FromStr for FilesystemType {
         match s.to_lowercase().as_str() {
             "ofs" => Ok(FilesystemType::OFS),
             "ffs" => Ok(FilesystemType::FFS),
-            _ => Err(Error::InvalidFilesystemType),
+            _ => Err(Error::InvalidFilesystemTypeError),
         }
     }
 }
@@ -46,6 +52,12 @@ pub enum InternationalMode {
     Yes = 0x02,
 }
 
+impl Default for InternationalMode {
+    fn default() -> Self {
+        InternationalMode::No
+    }
+}
+
 impl fmt::Display for InternationalMode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -60,6 +72,12 @@ impl fmt::Display for InternationalMode {
 pub enum CacheMode {
     No  = 0,
     Yes = 0x04,
+}
+
+impl Default for CacheMode {
+    fn default() -> Self {
+        CacheMode::No
+    }
 }
 
 impl fmt::Display for CacheMode {
@@ -89,7 +107,7 @@ fn compute_checksum(data: &[u8]) -> u32 {
 }
 
 fn verify_checksum(data: &[u8], expected: u32) -> Result<(), Error> {
-    if compute_checksum(data) == expected {
+    if compute_checksum(data) != expected {
         Err(Error::CorruptedImageFile)
     } else {
         Ok(())

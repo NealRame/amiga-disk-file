@@ -8,7 +8,7 @@ use crate::disk::{
 use crate::errors::Error;
 
 use super::block_type::*;
-use super::constants::BLOCK_CHECKSUM_OFFSET;
+use super::constants::*;
 
 fn compute_checksum(data: &[u8]) -> u32 {
     let mut checksum = 0u32;
@@ -41,13 +41,11 @@ macro_rules! generate_read_fns {
             pub fn [<read_ $t>](
                 &self,
                 offset: usize,
-                value: &mut $t,
-            ) -> Result<(), Error> {
+            ) -> Result<$t, Error> {
                 let size = std::mem::size_of::<$t>();
 
                 if let Ok(buf) = self.data[offset..offset + size].try_into() {
-                    *value = $t::from_be_bytes(buf);
-                    Ok(())
+                    Ok($t::from_be_bytes(buf))
                 } else {
                     Err(Error::DiskInvalidBlockOffsetError(offset))
                 }
@@ -61,7 +59,7 @@ macro_rules! generate_read_fns {
                 let size = std::mem::size_of::<$t>();
 
                 for i in 0..values.len() {
-                    self.[<read_ $t>](offset + i*size, &mut values[i])?
+                    values[i] = self.[<read_ $t>](offset + i*size)?
                 }
                 Ok(())
             }
@@ -85,11 +83,9 @@ impl BlockReader<'_> {
     pub fn read_u8(
         &self,
         offset: usize,
-        v: &mut u8,
-    ) -> Result<(), Error> {
+    ) -> Result<u8, Error> {
         if offset < self.data.len() {
-            *v = self.data[offset];
-            Ok(())
+            Ok(self.data[offset])
         } else {
             Err(Error::DiskInvalidBlockOffsetError(offset))
         }
@@ -108,33 +104,38 @@ impl BlockReader<'_> {
         }
     }
 
-    pub fn read_block_primary_type(
+    pub fn verify_block_primary_type(
         &self,
-        block_primary_type: &mut BlockPrimaryType,
+        expected_block_primary_type: BlockPrimaryType,
     ) -> Result<(), Error> {
-        let mut v: u32 = 0;
+        let v = self.read_u32(0)?;
+        let block_primary_type = BlockPrimaryType::try_from(v)?;
 
-        self.read_u32(0, &mut v)?;
-        *block_primary_type = BlockPrimaryType::try_from(v)?;
-        Ok(())
+        if block_primary_type != expected_block_primary_type {
+            Err(Error::UnexpectedFilesystemBlockPrimaryTypeError(v))
+        } else {
+            Ok(())
+        }
     }
 
-    pub fn read_block_secondary_type(
+    pub fn verify_block_secondary_type(
         &self,
-        block_secondary_type: &mut BlockSecondaryType,
+        expected_block_secondary_type: BlockSecondaryType,
     ) -> Result<(), Error> {
-        let mut v: u32 = 0;
+        let v: u32 = self.read_u32(BLOCK_SIZE - 4)?;
+        let block_secondary_type = BlockSecondaryType::try_from(v)?;
 
-        self.read_u32(BLOCK_SIZE - 4, &mut v)?;
-        *block_secondary_type = BlockSecondaryType::try_from(v)?;
-        Ok(())
+        if block_secondary_type != expected_block_secondary_type {
+            Err(Error::UnexpectedFilesystemBlockSecondaryTypeError(v))
+        } else {
+            Ok(())
+        }
     }
 
     pub fn verify_checksum(&self) -> Result<(), Error> {
-        let mut expected = 0;
+        let expected_checksum = self.read_u32(BLOCK_CHECKSUM_OFFSET)?;
 
-        self.read_u32(BLOCK_CHECKSUM_OFFSET, &mut expected)?;
-        if compute_checksum(self.data) != expected {
+        if compute_checksum(self.data) != expected_checksum {
             Err(Error::CorruptedImageFile)
         } else {
             Ok(())
@@ -184,7 +185,7 @@ macro_rules! generate_write_fns {
             pub fn [<write_ $t _array>](
                 &mut self,
                 offset: usize,
-                values: &mut [$t],
+                values: &[$t],
             ) -> Result<(), Error> {
                 for i in 0..values.len() {
                     self.[<write_ $t>](offset + i, values[i])?
@@ -224,6 +225,22 @@ impl BlockWriter<'_> {
         } else {
             Err(Error::DiskInvalidBlockOffsetError(offset))
         }
+    }
+
+    pub fn write_block_primary_type(
+        &mut self,
+        block_primary_type: BlockPrimaryType,
+    ) -> Result<(), Error> {
+        self.write_u32(BLOCK_PRIMARY_TYPE_OFFSET, block_primary_type as u32)?;
+        Ok(())
+    }
+
+    pub fn write_block_secondary_type(
+        &mut self,
+        block_secondary_type: BlockSecondaryType,
+    ) -> Result<(), Error> {
+        self.write_u32(BLOCK_SECONDARY_TYPE_OFFSET, block_secondary_type as u32)?;
+        Ok(())
     }
 
     pub fn write_checksum(&mut self) -> Result<(), Error> {

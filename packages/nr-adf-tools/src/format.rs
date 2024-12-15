@@ -27,6 +27,9 @@ pub struct Args {
     /// Disk file
     disk_file_path: path::PathBuf,
 
+    /// Volune name
+    volume_name: String,
+
     /// Specify the file system type
     #[arg(short = 't', long, default_value = "ofs")]
     filesystem_type: FilesystemType,
@@ -34,13 +37,13 @@ pub struct Args {
 
 pub fn run(args: &Args) -> Result<()> {
     let mut disk = read_disk_file(&args.disk_file_path)?;
-
-    let boot_block =
-        BootBlockBuilder::new(disk.disk_type())
+    let fs =
+        AmigaDosFormater::default()
             .width_filesystem_type(args.filesystem_type)
-            .build();
+            .format(disk.disk_type(), &args.volume_name);
 
-    boot_block.try_write_to_disk(&mut disk)?;
+    fs.boot_block.try_write_to_disk(&mut disk)?;
+    fs.root_block.try_write_to_disk(&mut disk)?;
 
     write_disk_file(&args.disk_file_path, &disk)?;
 

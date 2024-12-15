@@ -4,16 +4,17 @@ use std::fmt;
 pub enum Error {
     CorruptedImageFile,
 
-    InvalidFilesystemType,
+    InvalidVolumeNameError(String),
 
-    InvalidHeaderType(u32),
+    InvalidFilesystemTypeError,
+    InvalidFilesystemBlockPrimaryTypeError(u32),
+    UnexpectedFilesystemBlockPrimaryTypeError(u32),
+    InvalidFilesystemBlockSecondaryTypeError(u32),
+    UnexpectedFilesystemBlockSecondaryTypeError(u32),
 
     DiskInvalidLBAAddressError(usize),
     DiskInvalidBlockOffsetError(usize),
     DiskInvalidSizeError(usize),
-
-    DiskReadError,
-    DiskWriteError,
 }
 
 impl std::error::Error for Error {}
