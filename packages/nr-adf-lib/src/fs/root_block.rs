@@ -86,6 +86,15 @@ impl Default for RootBlock {
 }
 
 impl RootBlock {
+    pub fn with_volume_name(volume_name: &str) -> Self {
+        let mut root_block = RootBlock::default();
+
+        root_block.volume_name = volume_name.into();
+        root_block
+    }
+}
+
+impl RootBlock {
     fn try_read_bitmap(
         &mut self,
         br: &BlockReader,
