@@ -48,21 +48,33 @@ impl fmt::Display for FilesystemType {
 #[derive(Clone, Copy, Debug)]
 #[repr(u8)]
 pub enum InternationalMode {
-    No  = 0,
-    Yes = 0x02,
+    Off = 0,
+    On  = 0x02,
 }
 
 impl Default for InternationalMode {
     fn default() -> Self {
-        InternationalMode::No
+        InternationalMode::Off
+    }
+}
+
+impl FromStr for InternationalMode {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "on"|"yes" => Ok(InternationalMode::On),
+            "off"|"no" => Ok(InternationalMode::Off),
+            _ => Err(Error::InvalidInternationalModeError)
+        }
     }
 }
 
 impl fmt::Display for InternationalMode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            InternationalMode::Yes => write!(f, "INTL"),
-            InternationalMode::No =>  write!(f, "NO_INTL"),
+            InternationalMode::On => write!(f, "INTL-ON"),
+            InternationalMode::Off =>  write!(f, "INTL-OFF"),
         }
     }
 }
@@ -70,21 +82,33 @@ impl fmt::Display for InternationalMode {
 #[derive(Clone, Copy, Debug)]
 #[repr(u8)]
 pub enum CacheMode {
-    No  = 0,
-    Yes = 0x04,
+    Off  = 0,
+    On = 0x04,
 }
 
 impl Default for CacheMode {
     fn default() -> Self {
-        CacheMode::No
+        CacheMode::Off
+    }
+}
+
+impl FromStr for CacheMode {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "on"|"yes" => Ok(CacheMode::On),
+            "off"|"no" => Ok(CacheMode::Off),
+            _ => Err(Error::InvalidCacheModeError)
+        }
     }
 }
 
 impl fmt::Display for CacheMode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            CacheMode::Yes => write!(f, "CACHE"),
-            CacheMode::No =>  write!(f, "NO_CACHE"),
+            CacheMode::On => write!(f, "CACHE-ON"),
+            CacheMode::Off =>  write!(f, "CACHE-OFF"),
         }
     }
 }
@@ -142,17 +166,17 @@ impl BootBlock {
 
     pub fn international_mode(&self) -> InternationalMode {
         if self.flags & 0x02 == 0 {
-            InternationalMode::No
+            InternationalMode::Off
         } else {
-            InternationalMode::Yes
+            InternationalMode::On
         }
     }
 
     pub fn cache_mode(&self) -> CacheMode {
         if self.flags & 0x04 == 0 {
-            CacheMode::No
+            CacheMode::Off
         } else {
-            CacheMode::Yes
+            CacheMode::On
         }
     }
 

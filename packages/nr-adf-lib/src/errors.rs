@@ -7,6 +7,8 @@ pub enum Error {
     InvalidVolumeNameError(String),
 
     InvalidFilesystemTypeError,
+    InvalidCacheModeError,
+    InvalidInternationalModeError,
     InvalidFilesystemBlockPrimaryTypeError(u32),
     UnexpectedFilesystemBlockPrimaryTypeError(u32),
     InvalidFilesystemBlockSecondaryTypeError(u32),
