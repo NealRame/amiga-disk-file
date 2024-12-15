@@ -9,17 +9,9 @@ pub struct AmigaDos {
     disk: Disk,
 }
 
-impl TryFrom<Disk> for AmigaDos {
-    type Error = Error;
-
-    fn try_from(disk: Disk) -> Result<Self, Self::Error> {
-        let mut boot_block = BootBlock::default();
-        let mut root_block = RootBlock::default();
-
-        boot_block.try_read_from_disk(&disk)?;
-        root_block.try_read_from_disk(&disk)?;
-
-        Ok(AmigaDos { disk })
+impl From<Disk> for AmigaDos {
+    fn from(disk: Disk) -> Self {
+        AmigaDos { disk }
     }
 }
 
