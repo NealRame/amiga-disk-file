@@ -30,6 +30,14 @@ pub struct Args {
     /// Volune name
     volume_name: String,
 
+    /// Enable/Disable cache mode ["on", "off"]
+    #[arg(short = 'c', long = "cache-mode", default_value = "off")]
+    cache_mode: CacheMode,
+
+    /// Enable/Disable international mode ["on", "off"]
+    #[arg(short = 'i', long = "international-mode", default_value = "off")]
+    international_mode: InternationalMode,
+
     /// Specify the file system type
     #[arg(short = 't', long, default_value = "ofs")]
     filesystem_type: FilesystemType,
@@ -39,6 +47,8 @@ pub fn run(args: &Args) -> Result<()> {
     let disk = read_disk_file(&args.disk_file_path)?;
     let fs =
         AmigaDosFormater::default()
+            .with_cache_mode(args.cache_mode)
+            .with_international_mode(args.international_mode)
             .width_filesystem_type(args.filesystem_type)
             .format(disk, &args.volume_name)?;
 
