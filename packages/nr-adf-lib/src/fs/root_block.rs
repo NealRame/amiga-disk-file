@@ -61,7 +61,7 @@ impl RootBlock {
         br: &BlockReader,
     ) -> Result<(), Error> {
         self.bitmap_flag = br.read_u32(ROOT_BLOCK_BITMAP_FLAG_OFFSET)?;
-        self.bitmap_ext = br.read_u32(ROOT_BLOCK_BITMAP_EXTENSION_OFFSET)?;
+        self.bitmap_ext = br.read_u32(ROOT_BLOCK_BITMAP_EXT_OFFSET)?;
         br.read_u32_array(
             ROOT_BLOCK_BITMAP_PAGES_OFFSET,
             &mut self.bitmap_pages,
@@ -127,9 +127,9 @@ impl RootBlock {
         br: &BlockReader,
     ) -> Result<(), Error> {
         let mut name = [0u8; ROOT_BLOCK_DISK_NAME_MAX_SIZE];
-        let name_size = br.read_u8(ROOT_BLOCK_VOLUME_NAME_SIZE_OFFSET)?;
+        let name_size = br.read_u8(BLOCK_NAME_SIZE_OFFSET)?;
 
-        br.read_u8_array(ROOT_BLOCK_VOLUME_NAME_OFFSET, &mut name)?;
+        br.read_u8_array(BLOCK_NAME_OFFSET, &mut name)?;
 
         if let Ok(name) = str::from_utf8(&name[..name_size as usize]) {
             self.volume_name = name.into();
@@ -251,8 +251,8 @@ impl RootBlock {
         let name = self.volume_name.as_bytes();
         let name_size = usize::min(name.len(), ROOT_BLOCK_DISK_NAME_MAX_SIZE);
 
-        bw.write_u8(ROOT_BLOCK_VOLUME_NAME_SIZE_OFFSET, name_size as u8)?;
-        bw.write_u8_array(ROOT_BLOCK_VOLUME_NAME_OFFSET, &name[..name_size])?;
+        bw.write_u8(BLOCK_NAME_SIZE_OFFSET, name_size as u8)?;
+        bw.write_u8_array(BLOCK_NAME_OFFSET, &name[..name_size])?;
 
         Ok(())
     }
