@@ -1,10 +1,4 @@
-use std::time::Duration;
-
 use crate::disk::BLOCK_SIZE;
-
-// Time ///////////////////////////////////////////////////////////////////////
-pub const AMIGA_EPOCH_OFFSET                 : Duration = Duration::from_secs(252460800);
-pub const TICKS_PER_SECOND                   : u32 = 50;
 
 // Block //////////////////////////////////////////////////////////////////////
 pub const BLOCK_PRIMARY_TYPE_OFFSET          : usize = 0;
