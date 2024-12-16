@@ -19,7 +19,7 @@ pub struct RootBlock {
     pub root_alteration_date: SystemTime,
     pub volume_alteration_date: SystemTime,
 
-    hash_table: [u32; ROOT_BLOCK_HASH_TABLE_SIZE],
+    hash_table: [u32; BLOCK_HASH_TABLE_SIZE],
 
     bitmap_flag: u32,
     bitmap_pages: [u32; ROOT_BLOCK_BITMAP_MAX_PAGES],
@@ -33,7 +33,7 @@ impl Default for RootBlock {
         let current_date = SystemTime::now();
 
         return Self {
-            hash_table: [0u32; ROOT_BLOCK_HASH_TABLE_SIZE],
+            hash_table: [0u32; BLOCK_HASH_TABLE_SIZE],
 
             bitmap_flag: 0,
             bitmap_pages: [0u32; ROOT_BLOCK_BITMAP_MAX_PAGES],
@@ -79,7 +79,7 @@ impl RootBlock {
     ) -> Result<(), Error> {
         let hash_table_size = br.read_u32(ROOT_BLOCK_HASH_TABLE_SIZE_OFFSET)?;
 
-        if hash_table_size as usize == ROOT_BLOCK_HASH_TABLE_SIZE {
+        if hash_table_size as usize == BLOCK_HASH_TABLE_SIZE {
             br.read_u32_array(
                 BLOCK_HASH_TABLE_OFFSET,
                 &mut self.hash_table,
@@ -192,7 +192,7 @@ impl RootBlock {
         bw.write_u32_array(BLOCK_HASH_TABLE_OFFSET, &self.hash_table)?;
         bw.write_u32(
             ROOT_BLOCK_HASH_TABLE_SIZE_OFFSET,
-            ROOT_BLOCK_HASH_TABLE_SIZE as u32,
+            BLOCK_HASH_TABLE_SIZE as u32,
         )?;
         Ok(())
     }
