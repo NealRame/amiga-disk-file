@@ -52,8 +52,7 @@ pub struct RootBlock {
     pub root_alteration_date: SystemTime,
     pub volume_alteration_date: SystemTime,
 
-    hash_table_size: u32,
-    hash_table: [u32; ROOT_BLOCK_HASH_TABLE_MAX_SIZE],
+    hash_table: [u32; ROOT_BLOCK_HASH_TABLE_SIZE],
 
     bitmap_flag: u32,
     bitmap_pages: [u32; ROOT_BLOCK_BITMAP_MAX_PAGES],
@@ -67,8 +66,7 @@ impl Default for RootBlock {
         let current_date = SystemTime::now();
 
         return Self {
-            hash_table_size: 0,
-            hash_table: [0u32; ROOT_BLOCK_HASH_TABLE_MAX_SIZE],
+            hash_table: [0u32; ROOT_BLOCK_HASH_TABLE_SIZE],
 
             bitmap_flag: 0,
             bitmap_pages: [0u32; ROOT_BLOCK_BITMAP_MAX_PAGES],
@@ -101,7 +99,10 @@ impl RootBlock {
     ) -> Result<(), Error> {
         self.bitmap_flag = br.read_u32(ROOT_BLOCK_BITMAP_FLAG_OFFSET)?;
         self.bitmap_ext = br.read_u32(ROOT_BLOCK_BITMAP_EXTENSION_OFFSET)?;
-        br.read_u32_array(ROOT_BLOCK_BITMAP_PAGES_OFFSET, &mut self.bitmap_pages)?;
+        br.read_u32_array(
+            ROOT_BLOCK_BITMAP_PAGES_OFFSET,
+            &mut self.bitmap_pages,
+        )?;
         Ok(())
     }
 
@@ -109,9 +110,17 @@ impl RootBlock {
         &mut self,
         br: &BlockReader,
     ) -> Result<(), Error> {
-        self.hash_table_size = br.read_u32(ROOT_BLOCK_HASH_TABLE_SIZE_OFFSET)?;
-        br.read_u32_array(ROOT_BLOCK_HASH_TABLE_OFFSET, &mut self.hash_table)?;
-        Ok(())
+        let hash_table_size = br.read_u32(ROOT_BLOCK_HASH_TABLE_SIZE_OFFSET)?;
+
+        if hash_table_size as usize == ROOT_BLOCK_HASH_TABLE_SIZE {
+            br.read_u32_array(
+                BLOCK_HASH_TABLE_OFFSET,
+                &mut self.hash_table,
+            )?;
+            Ok(())
+        } else {
+            Err(Error::CorruptedImageFile)
+        }
     }
 
     fn try_read_disk_alteration_date(
@@ -207,15 +216,17 @@ impl RootBlock {
         bw.write_u32(ROOT_BLOCK_BITMAP_FLAG_OFFSET, self.bitmap_flag)?;
         bw.write_u32_array(ROOT_BLOCK_BITMAP_PAGES_OFFSET, &self.bitmap_pages)?;
         Ok(())
-
     }
 
     fn try_write_hash_table(
         &self,
         bw: &mut BlockWriter,
     ) -> Result<(), Error> {
-        bw.write_u32(ROOT_BLOCK_HASH_TABLE_SIZE_OFFSET, self.hash_table_size)?;
-        bw.write_u32_array(ROOT_BLOCK_HASH_TABLE_OFFSET, &self.hash_table)?;
+        bw.write_u32_array(BLOCK_HASH_TABLE_OFFSET, &self.hash_table)?;
+        bw.write_u32(
+            ROOT_BLOCK_HASH_TABLE_SIZE_OFFSET,
+            ROOT_BLOCK_HASH_TABLE_SIZE as u32,
+        )?;
         Ok(())
     }
 

@@ -8,10 +8,12 @@ pub const TICKS_PER_SECOND                   : u32 = 50;
 
 // Block //////////////////////////////////////////////////////////////////////
 pub const BLOCK_PRIMARY_TYPE_OFFSET          : usize = 0;
+
 pub const BLOCK_SECONDARY_TYPE_OFFSET        : usize = BLOCK_SIZE - 4;
 
 pub const BLOCK_CHECKSUM_OFFSET              : usize = 0x14;
 
+pub const BLOCK_HASH_TABLE_OFFSET            : usize = 0x18;
 
 // Boot block /////////////////////////////////////////////////////////////////
 pub const BOOT_BLOCK_CHECKSUM_OFFSET         : usize = 0x04;
@@ -38,10 +40,9 @@ pub const ROOT_BLOCK_BITMAP_MAX_PAGES        : usize = 25;
 
 pub const ROOT_BLOCK_DISK_NAME_MAX_SIZE      : usize = 30;
 
-pub const ROOT_BLOCK_HASH_TABLE_MAX_SIZE     : usize = BLOCK_SIZE/4 - 56;
+pub const ROOT_BLOCK_HASH_TABLE_SIZE         : usize = BLOCK_SIZE/4 - 56;
 
 pub const ROOT_BLOCK_HASH_TABLE_SIZE_OFFSET  : usize = 0x0c;
-pub const ROOT_BLOCK_HASH_TABLE_OFFSET       : usize = 0x18;
 
 pub const ROOT_BLOCK_BITMAP_FLAG_OFFSET      : usize = BLOCK_SIZE - 0xc8;
 pub const ROOT_BLOCK_BITMAP_PAGES_OFFSET     : usize = BLOCK_SIZE - 0xc4;
