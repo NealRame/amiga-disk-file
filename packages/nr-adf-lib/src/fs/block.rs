@@ -67,7 +67,7 @@ macro_rules! generate_read_fns {
     };
 }
 
-generate_read_fns!(i16, u16, i32, u32);
+generate_read_fns!(u32);
 
 impl<'disk> BlockReader<'disk> {
     pub fn try_from_disk(
@@ -196,7 +196,7 @@ macro_rules! generate_write_fns {
     };
 }
 
-generate_write_fns!(i16, u16, i32, u32);
+generate_write_fns!(u32);
 
 impl BlockWriter<'_> {
     pub fn write_u8(

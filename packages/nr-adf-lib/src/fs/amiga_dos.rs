@@ -1,6 +1,7 @@
 use crate::disk::Disk;
 use crate::errors::Error;
 
+use super::options::*;
 use super::boot_block::*;
 use super::root_block::*;
 
