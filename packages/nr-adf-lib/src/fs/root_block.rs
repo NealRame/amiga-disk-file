@@ -14,18 +14,14 @@ use super::datetime::*;
 #[derive(Clone, Debug)]
 pub struct RootBlock {
     pub volume_name: String,
-
     pub root_creation_date: SystemTime,
     pub root_alteration_date: SystemTime,
     pub volume_alteration_date: SystemTime,
-
-    hash_table: [u32; BLOCK_HASH_TABLE_SIZE],
-
-    bitmap_flag: u32,
-    bitmap_pages: [u32; ROOT_BLOCK_BITMAP_MAX_PAGES],
-    bitmap_ext: u32,
-
-    extension: u32,
+    pub hash_table: [u32; BLOCK_HASH_TABLE_SIZE],
+    pub bitmap_flag: u32,
+    pub bitmap_pages: [u32; ROOT_BLOCK_BITMAP_MAX_PAGES],
+    pub bitmap_ext: u32,
+    pub extension: u32,
 }
 
 impl Default for RootBlock {
