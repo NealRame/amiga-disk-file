@@ -14,12 +14,12 @@ fn compute_checksum(data: &[u8]) -> u32 {
 
     for chunk in data.chunks(4) {
         if chunk.len() == 4 {
-            let d = u32::from_be_bytes(chunk.try_into().unwrap());
+            let v = u32::from_be_bytes(chunk.try_into().unwrap());
 
-            if u32::MAX < d {
-                checksum = checksum.overflowing_add(1).0;
+            if u32::MAX < v {
+                (checksum, _) = checksum.overflowing_add(1);
             }
-            checksum = checksum.overflowing_add(d).0;
+            (checksum, _) = checksum.overflowing_add(v);
         }
     }
 
