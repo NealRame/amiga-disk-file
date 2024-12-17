@@ -152,7 +152,7 @@ impl RootBlock {
     }
 }
 
-impl Read for RootBlock {
+impl ReadFromDisk for RootBlock {
     fn read(
         &mut self,
         disk: &Disk,
@@ -274,7 +274,7 @@ impl RootBlock {
     }
 }
 
-impl Write for RootBlock {
+impl WriteToDisk for RootBlock {
     fn write(
         &self,
         disk: &mut Disk,

@@ -86,7 +86,7 @@ impl BootBlock {
     }
 }
 
-impl Read for BootBlock {
+impl ReadFromDisk for BootBlock {
     fn read(&mut self, disk: &Disk) -> Result<(), Error> {
         let mut data = disk.read_blocks(0, 2)?;
 
@@ -107,7 +107,7 @@ impl Read for BootBlock {
     }
 }
 
-impl Write for BootBlock {
+impl WriteToDisk for BootBlock {
     fn write(&self, disk: &mut Disk) -> Result<(), Error> {
         let mut data = [0u8; 2*BLOCK_SIZE];
 

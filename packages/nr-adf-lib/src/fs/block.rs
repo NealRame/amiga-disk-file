@@ -264,10 +264,10 @@ impl BlockWriter<'_> {
 * Traits **********************************************************************
 ******************************************************************************/
 
-pub trait Read {
+pub trait ReadFromDisk {
     fn read(&mut self, disk: &Disk) -> Result<(), Error>;
 }
 
-pub trait Write {
+pub trait WriteToDisk {
     fn write(&self, disk: &mut Disk) -> Result<(), Error>;
 }
