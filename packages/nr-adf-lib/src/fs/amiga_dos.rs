@@ -2,6 +2,7 @@ use crate::disk::Disk;
 use crate::errors::Error;
 
 use super::options::*;
+use super::block::*;
 use super::boot_block::*;
 use super::root_block::*;
 
@@ -24,14 +25,14 @@ impl AmigaDos {
     pub fn root_block(&self) -> Result<RootBlock, Error> {
         let mut root_block = RootBlock::default();
 
-        root_block.try_read_from_disk(&self.disk)?;
+        root_block.read(&self.disk)?;
         Ok(root_block)
     }
 
     pub fn boot_block(&self) -> Result<BootBlock, Error> {
         let mut boot_block = BootBlock::default();
 
-        boot_block.try_read_from_disk(&self.disk)?;
+        boot_block.read(&self.disk)?;
         Ok(boot_block)
     }
 }
@@ -78,10 +79,9 @@ impl AmigaDosFormater {
             .with_cache_mode(self.filesystem_cache_mode)
             .with_international_mode(self.filesystem_intl_mode)
             .build()
-            .try_write_to_disk(&mut disk)?;
+            .write(&mut disk)?;
 
-        RootBlock::with_volume_name(volume_name)
-            .try_write_to_disk(&mut disk)?;
+        RootBlock::with_volume_name(volume_name).write(&mut disk)?;
 
         Ok(AmigaDos {
             disk

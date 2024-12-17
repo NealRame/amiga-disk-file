@@ -55,6 +55,9 @@ impl RootBlock {
     }
 }
 
+/******************************************************************************
+* Rootblock read helpers
+******************************************************************************/
 impl RootBlock {
     fn try_read_bitmap(
         &mut self,
@@ -147,8 +150,10 @@ impl RootBlock {
         self.extension = br.read_u32(ROOT_BLOCK_EXTENSION_OFFSET)?;
         Ok(())
     }
+}
 
-    pub fn try_read_from_disk(
+impl Read for RootBlock {
+    fn read(
         &mut self,
         disk: &Disk,
     ) -> Result<(), Error> {
@@ -171,6 +176,9 @@ impl RootBlock {
     }
 }
 
+/******************************************************************************
+* Rootblock write helpers
+******************************************************************************/
 impl RootBlock {
     fn try_write_bitmap(
         &self,
@@ -264,8 +272,10 @@ impl RootBlock {
         bw.write_u32(ROOT_BLOCK_EXTENSION_OFFSET, self.extension)?;
         Ok(())
     }
+}
 
-    pub fn try_write_to_disk(
+impl Write for RootBlock {
+    fn write(
         &self,
         disk: &mut Disk,
     ) -> Result<(), Error> {

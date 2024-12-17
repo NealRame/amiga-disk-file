@@ -5,6 +5,7 @@ use crate::disk::{
 };
 use crate::errors::Error;
 
+use super::block::*;
 use super::constants::*;
 use super::options::*;
 
@@ -85,8 +86,8 @@ impl BootBlock {
     }
 }
 
-impl BootBlock {
-    pub fn try_read_from_disk(&mut self, disk: &Disk) -> Result<(), Error> {
+impl Read for BootBlock {
+    fn read(&mut self, disk: &Disk) -> Result<(), Error> {
         let mut data = disk.read_blocks(0, 2)?;
 
         if &data[0..3] != &[0x44, 0x4f, 0x53] { // DOS
@@ -106,8 +107,8 @@ impl BootBlock {
     }
 }
 
-impl BootBlock {
-    pub fn try_write_to_disk(&self, disk: &mut Disk) -> Result<(), Error> {
+impl Write for BootBlock {
+    fn write(&self, disk: &mut Disk) -> Result<(), Error> {
         let mut data = [0u8; 2*BLOCK_SIZE];
 
         data[BOOT_BLOCK_DISK_TYPE_SLICE].copy_from_slice(
