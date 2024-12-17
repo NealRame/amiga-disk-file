@@ -10,19 +10,18 @@ use crate::errors::Error;
 use super::block_type::*;
 use super::constants::*;
 
-fn compute_checksum(data: &[u8]) -> u32 {
+fn compute_checksum(data: &[u8], offset: usize) -> u32 {
+    const CHECKSUM_CHUNK_SIZE: usize = size_of::<u32>();
+
+    let skip_offset = offset/CHECKSUM_CHUNK_SIZE;
     let mut checksum = 0u32;
 
-    for (i, chunk) in data.chunks(4).enumerate() {
-        if chunk.len() == 4 {
-            let d = u32::from_be_bytes(chunk.try_into().unwrap());
-
-            if i != 5 {
-                checksum = checksum.overflowing_add(d).0;
-            }
+    for (i, chunk) in data.chunks_exact(CHECKSUM_CHUNK_SIZE).enumerate() {
+        if i != skip_offset {
+            let v = u32::from_be_bytes(chunk.try_into().unwrap());
+            (checksum, _) = checksum.overflowing_add(v);
         }
     }
-
     !checksum
 }
 
@@ -104,15 +103,28 @@ impl BlockReader<'_> {
         }
     }
 
+    pub fn read_block_primary_type(
+        &self,
+    ) -> Result<BlockPrimaryType, Error> {
+        let v = self.read_u32(0)?;
+        BlockPrimaryType::try_from(v)
+    }
+
+    pub fn read_block_secondary_type(
+        &self,
+    ) -> Result<BlockSecondaryType, Error> {
+        let v: u32 = self.read_u32(BLOCK_SIZE - 4)?;
+        BlockSecondaryType::try_from(v)
+    }
+
     pub fn verify_block_primary_type(
         &self,
         expected_block_primary_type: BlockPrimaryType,
     ) -> Result<(), Error> {
-        let v = self.read_u32(0)?;
-        let block_primary_type = BlockPrimaryType::try_from(v)?;
+        let block_type = self.read_block_primary_type()?;
 
-        if block_primary_type != expected_block_primary_type {
-            Err(Error::UnexpectedFilesystemBlockPrimaryTypeError(v))
+        if block_type != expected_block_primary_type {
+            Err(Error::UnexpectedFilesystemBlockPrimaryTypeError(block_type as u32))
         } else {
             Ok(())
         }
@@ -122,20 +134,19 @@ impl BlockReader<'_> {
         &self,
         expected_block_secondary_type: BlockSecondaryType,
     ) -> Result<(), Error> {
-        let v: u32 = self.read_u32(BLOCK_SIZE - 4)?;
-        let block_secondary_type = BlockSecondaryType::try_from(v)?;
+        let block_type = self.read_block_secondary_type()?;
 
-        if block_secondary_type != expected_block_secondary_type {
-            Err(Error::UnexpectedFilesystemBlockSecondaryTypeError(v))
+        if block_type != expected_block_secondary_type {
+            Err(Error::UnexpectedFilesystemBlockSecondaryTypeError(block_type as u32))
         } else {
             Ok(())
         }
     }
 
-    pub fn verify_checksum(&self) -> Result<(), Error> {
-        let expected_checksum = self.read_u32(BLOCK_CHECKSUM_OFFSET)?;
+    pub fn verify_checksum(&self, offset: usize) -> Result<(), Error> {
+        let expected_checksum = self.read_u32(offset)?;
 
-        if compute_checksum(self.data) != expected_checksum {
+        if compute_checksum(self.data, offset) != expected_checksum {
             Err(Error::CorruptedImageFile)
         } else {
             Ok(())
@@ -243,8 +254,8 @@ impl BlockWriter<'_> {
         Ok(())
     }
 
-    pub fn write_checksum(&mut self) -> Result<(), Error> {
-        self.write_u32(BLOCK_CHECKSUM_OFFSET, compute_checksum(self.data))?;
+    pub fn write_checksum(&mut self, offset: usize) -> Result<(), Error> {
+        self.write_u32(offset, compute_checksum(self.data, offset))?;
         Ok(())
     }
 }

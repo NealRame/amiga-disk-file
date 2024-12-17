@@ -155,7 +155,7 @@ impl RootBlock {
         let addr = disk.block_count()/2;
         let reader = BlockReader::try_from_disk(disk, addr)?;
 
-        reader.verify_checksum()?;
+        reader.verify_checksum(BLOCK_CHECKSUM_OFFSET)?;
         reader.verify_block_primary_type(BlockPrimaryType::Header)?;
         reader.verify_block_secondary_type(BlockSecondaryType::RootDir)?;
 
@@ -282,7 +282,7 @@ impl RootBlock {
 
         writer.write_block_primary_type(BlockPrimaryType::Header)?;
         writer.write_block_secondary_type(BlockSecondaryType::RootDir)?;
-        writer.write_checksum()?;
+        writer.write_checksum(BLOCK_CHECKSUM_OFFSET)?;
 
         Ok(())
     }
