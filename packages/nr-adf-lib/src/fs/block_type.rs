@@ -36,7 +36,7 @@ impl TryFrom<u32> for BlockPrimaryType {
 #[repr(u32)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum BlockSecondaryType {
-    RootDir           = 1,
+    Root              = 1,
     Directory         = 2,
     SoftLink          = 3,
     HardLinkDirectory = 4,
@@ -55,11 +55,11 @@ impl TryFrom<u32> for BlockSecondaryType {
 
     fn try_from(value: u32) -> Result<Self, Self::Error> {
         match value {
-            _ if value == BlockSecondaryType::RootDir.into() => {
-                Ok(BlockSecondaryType::RootDir)
+            _ if value == BlockSecondaryType::Root.into() => {
+                Ok(BlockSecondaryType::Root)
             },
             _ if value == BlockSecondaryType::Directory.into() => {
-                Ok(BlockSecondaryType::RootDir)
+                Ok(BlockSecondaryType::Root)
             },
             _ if value == BlockSecondaryType::SoftLink.into() => {
                 Ok(BlockSecondaryType::SoftLink)

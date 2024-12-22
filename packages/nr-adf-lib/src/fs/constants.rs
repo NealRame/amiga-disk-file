@@ -9,9 +9,11 @@ pub const BLOCK_CHECKSUM_OFFSET             : usize = 0x14;
 
 pub const BLOCK_HASH_TABLE_OFFSET           : usize = 0x18;
 pub const BLOCK_HASH_TABLE_SIZE             : usize = BLOCK_SIZE/4 - 56;
+pub const BLOCK_HASH_CHAIN_NEXT_OFFSET      : usize = BLOCK_SIZE - 0x10;
 
 pub const BLOCK_NAME_SIZE_OFFSET            : usize = BLOCK_SIZE - 0x50;
 pub const BLOCK_NAME_OFFSET                 : usize = BLOCK_SIZE - 0x4f;
+pub const BLOCK_NAME_MAX_SIZE               : usize = 30;
 
 // Boot block /////////////////////////////////////////////////////////////////
 pub const BOOT_BLOCK_CHECKSUM_OFFSET        : usize = 0x04;

@@ -4,7 +4,12 @@ use std::fmt;
 pub enum Error {
     CorruptedImageFile,
 
-    InvalidVolumeNameError(String),
+    InvalidHashError(usize),
+
+    InvalidNameError,
+    InvalidNameLengthError(usize),
+
+    InvalidStringError,
 
     InvalidFilesystemTypeError,
     InvalidCacheModeError,

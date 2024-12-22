@@ -129,18 +129,23 @@ impl RootBlock {
         &mut self,
         br: &BlockReader,
     ) -> Result<(), Error> {
-        let mut name = [0u8; ROOT_BLOCK_DISK_NAME_MAX_SIZE];
-        let name_size = br.read_u8(BLOCK_NAME_SIZE_OFFSET)?;
+        let len = br.read_u8(BLOCK_NAME_SIZE_OFFSET)? as usize;
 
-        br.read_u8_array(BLOCK_NAME_OFFSET, &mut name)?;
-
-        if let Ok(name) = str::from_utf8(&name[..name_size as usize]) {
-            self.volume_name = name.into();
+        if len <= ROOT_BLOCK_DISK_NAME_MAX_SIZE {
+            self.volume_name = br.read_string(BLOCK_NAME_OFFSET, len)?;
+            Ok(())
         } else {
-            return Err(Error::CorruptedImageFile);
+            Err(Error::InvalidNameLengthError(len))
         }
 
-        Ok(())
+
+        // if let Ok(name) = str::from_utf8(&name[..name_size as usize]) {
+        //     self.volume_name = name.into();
+        // } else {
+        //     return Err(Error::CorruptedImageFile);
+        // }
+
+        // Ok(())
     }
 
     fn try_read_extension(
@@ -162,7 +167,7 @@ impl ReadFromDisk for RootBlock {
 
         reader.verify_checksum(BLOCK_CHECKSUM_OFFSET)?;
         reader.verify_block_primary_type(BlockPrimaryType::Header)?;
-        reader.verify_block_secondary_type(BlockSecondaryType::RootDir)?;
+        reader.verify_block_secondary_type(&[BlockSecondaryType::Root])?;
 
         self.try_read_bitmap(&reader)?;
         self.try_read_hash_table(&reader)?;
@@ -291,7 +296,7 @@ impl WriteToDisk for RootBlock {
         self.try_write_extension(&mut writer)?;
 
         writer.write_block_primary_type(BlockPrimaryType::Header)?;
-        writer.write_block_secondary_type(BlockSecondaryType::RootDir)?;
+        writer.write_block_secondary_type(BlockSecondaryType::Root)?;
         writer.write_checksum(BLOCK_CHECKSUM_OFFSET)?;
 
         Ok(())

@@ -1,10 +1,15 @@
+use std::path::Path;
+use std::path::PathBuf;
+
 use crate::disk::Disk;
 use crate::errors::Error;
 
-use super::options::*;
 use super::block::*;
 use super::boot_block::*;
 use super::root_block::*;
+
+use super::options::*;
+use super::read_dir::*;
 
 
 pub struct AmigaDos {
@@ -36,6 +41,26 @@ impl AmigaDos {
         Ok(boot_block)
     }
 }
+
+/******************************************************************************
+* AmigaDos ReadDir ************************************************************
+******************************************************************************/
+impl AmigaDos {
+    pub fn read_dir<P: AsRef<Path>>(
+        &self,
+        path: P,
+    ) -> Result<ReadDir, Error> {
+        ReadDir::try_from_disk(
+            self.disk(),
+            880,
+            PathBuf::from(path.as_ref())
+        )
+    }
+}
+
+/******************************************************************************
+* AmigaDosFormater ************************************************************
+******************************************************************************/
 
 #[derive(Clone, Debug, Default)]
 pub struct AmigaDosFormater {

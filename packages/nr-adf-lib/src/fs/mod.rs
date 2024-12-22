@@ -2,6 +2,10 @@ mod block;
 mod block_type;
 mod constants;
 mod datetime;
+
+mod name;
+mod read_dir;
+
 mod boot_block;
 mod root_block;
 

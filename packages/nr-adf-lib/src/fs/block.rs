@@ -9,6 +9,8 @@ use crate::errors::Error;
 
 use super::block_type::*;
 use super::constants::*;
+use super::name::*;
+
 
 fn compute_checksum(data: &[u8], offset: usize) -> u32 {
     const CHECKSUM_CHUNK_SIZE: usize = size_of::<u32>();
@@ -62,6 +64,18 @@ macro_rules! generate_read_fns {
                 }
                 Ok(())
             }
+
+            pub fn [<read_ $t _vector>](
+                &self,
+                offset: usize,
+                len: usize,
+            ) -> Result<Vec<$t>, Error> {
+                let mut v = Vec::new();
+
+                v.resize(len, 0);
+                self.[<read_ $t _array>](offset, &mut v)?;
+                Ok(v)
+            }
         })*}
     };
 }
@@ -93,13 +107,51 @@ impl BlockReader<'_> {
     pub fn read_u8_array(
         &self,
         offset: usize,
-        v: &mut [u8],
+        data: &mut [u8],
     ) -> Result<(), Error> {
-        if offset + v.len() <= self.data.len() {
-            v.copy_from_slice(&self.data[offset..offset + v.len()]);
+        if offset + data.len() <= self.data.len() {
+            data.copy_from_slice(&self.data[offset..offset + data.len()]);
             Ok(())
         } else {
             Err(Error::DiskInvalidBlockOffsetError(offset))
+        }
+    }
+
+    pub fn read_u8_vector(
+        &self,
+        offset: usize,
+        len: usize,
+    ) -> Result<Vec<u8>, Error> {
+        let mut v = Vec::new();
+
+        v.resize(len, 0);
+        self.read_u8_array(offset, &mut v)?;
+        Ok(v)
+    }
+
+    pub fn read_string(
+        &self,
+        offset: usize,
+        len: usize,
+    ) -> Result<String, Error> {
+        let bytes = self.read_u8_vector(offset, len)?;
+
+        if let Ok(s) = String::from_utf8(bytes) {
+            Ok(s)
+        } else {
+            Err(Error::InvalidStringError)
+        }
+    }
+
+    pub fn read_name(
+        &self,
+    ) -> Result<String, Error> {
+        let len = self.read_u8(BLOCK_NAME_SIZE_OFFSET)? as usize;
+
+        if len <= BLOCK_NAME_MAX_SIZE {
+            check_name(self.read_string(BLOCK_NAME_OFFSET, len)?)
+        } else {
+            Err(Error::InvalidNameLengthError(len))
         }
     }
 
@@ -132,15 +184,17 @@ impl BlockReader<'_> {
 
     pub fn verify_block_secondary_type(
         &self,
-        expected_block_secondary_type: BlockSecondaryType,
+        expected_block_secondary_types: &[BlockSecondaryType],
     ) -> Result<(), Error> {
         let block_type = self.read_block_secondary_type()?;
 
-        if block_type != expected_block_secondary_type {
-            Err(Error::UnexpectedFilesystemBlockSecondaryTypeError(block_type as u32))
-        } else {
-            Ok(())
+        for expected in expected_block_secondary_types {
+            if block_type == *expected {
+                return Ok(())
+            }
         }
+
+        Err(Error::UnexpectedFilesystemBlockSecondaryTypeError(block_type as u32))
     }
 
     pub fn verify_checksum(&self, offset: usize) -> Result<(), Error> {
