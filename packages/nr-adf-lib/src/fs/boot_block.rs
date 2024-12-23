@@ -1,25 +1,32 @@
 use crate::disk::{
     BLOCK_SIZE,
     Disk,
-    DiskType,
+    LBAAddress,
 };
 use crate::errors::Error;
 
-use super::block::*;
 use super::constants::*;
 use super::options::*;
 
 
 fn compute_checksum(data: &[u8]) -> u32 {
+    const CHECKSUM_CHUNK_SIZE: usize = size_of::<u32>();
+
+    let skip_offset = BOOT_BLOCK_CHECKSUM_OFFSET/CHECKSUM_CHUNK_SIZE;
     let mut checksum = 0u32;
 
-    for chunk in data.chunks(4) {
+    for (i, chunk) in data.chunks(4).enumerate() {
         if chunk.len() == 4 {
-            let v = u32::from_be_bytes(chunk.try_into().unwrap());
+            let v = if i != skip_offset {
+                u32::from_be_bytes(chunk.try_into().unwrap())
+            } else {
+                0
+            };
 
             if u32::MAX < v {
                 (checksum, _) = checksum.overflowing_add(1);
             }
+
             (checksum, _) = checksum.overflowing_add(v);
         }
     }
@@ -27,95 +34,133 @@ fn compute_checksum(data: &[u8]) -> u32 {
     !checksum
 }
 
-fn verify_checksum(data: &[u8], expected: u32) -> Result<(), Error> {
-    if compute_checksum(data) != expected {
-        Err(Error::CorruptedImageFile)
-    } else {
-        Ok(())
-    }
+#[derive(Clone, Copy, Debug)]
+pub struct BootBlockReader {
+    pub checksum_computed: u32,
+    pub checksum_expected: u32,
+    pub filesystem_type: FilesystemType,
+    pub international_mode: InternationalMode,
+    pub cache_mode: CacheMode,
+    pub root_block_address: LBAAddress,
+    pub boot_code: [u8; BOOT_BLOCK_BOOT_CODE_SIZE],
 }
 
-#[derive(Clone, Debug)]
-pub struct BootBlock {
-    boot_code: [u8; BOOT_BLOCK_BOOT_CODE_SIZE],
-    flags: u8,
-    root_block_address: u32,
-}
-
-impl Default for BootBlock {
-    fn default() -> Self {
-        Self {
-            boot_code: [0; BOOT_BLOCK_BOOT_CODE_SIZE],
-            flags: 0,
-            root_block_address: 0,
-        }
-    }
-}
-
-impl BootBlock {
-    pub fn filesystem_type(&self) -> FilesystemType {
-        if self.flags & 0x01 == 0 {
-            FilesystemType::OFS
-        } else {
-            FilesystemType::FFS
-        }
-    }
-
-    pub fn international_mode(&self) -> InternationalMode {
-        if self.flags & 0x02 == 0 {
-            InternationalMode::Off
-        } else {
-            InternationalMode::On
-        }
-    }
-
-    pub fn cache_mode(&self) -> CacheMode {
-        if self.flags & 0x04 == 0 {
-            CacheMode::Off
-        } else {
-            CacheMode::On
-        }
-    }
-
-    pub fn boot_code(&self) -> &[u8] {
-        self.boot_code.as_slice()
-    }
-
-    pub fn root_block_address(&self) -> usize {
-        self.root_block_address as usize
-    }
-}
-
-impl ReadFromDisk for BootBlock {
-    fn read(&mut self, disk: &Disk) -> Result<(), Error> {
-        let mut data = disk.read_blocks(0, 2)?;
+impl BootBlockReader {
+    pub fn from_disk(disk: &Disk) -> Result<Self, Error> {
+        let data = disk.read_blocks(0, 2)?;
 
         if &data[0..3] != &[0x44, 0x4f, 0x53] { // DOS
             return Err(Error::CorruptedImageFile);
         }
 
-        let checksum = u32::from_be_bytes(data[4..8].try_into().unwrap());
+        let root_block_address = u32::from_be_bytes(data[8..12].try_into().unwrap()) as LBAAddress;
+        let checksum_expected = u32::from_be_bytes(data[4..8].try_into().unwrap());
+        let checksum_computed = compute_checksum(&data);
 
-        data[4..8].fill(0);
-        verify_checksum(&data, checksum)?;
+        let flags = data[3];
 
-        self.flags = data[3];
-        self.boot_code.copy_from_slice(&data[12..]);
-        self.root_block_address = u32::from_be_bytes(data[8..12].try_into().unwrap());
+        let filesystem_type =
+            if flags & (FilesystemType::FFS as u8) != 0 {
+                FilesystemType::FFS
+            } else {
+                FilesystemType::OFS
+            };
 
-        Ok(())
+        let international_mode =
+            if flags & (InternationalMode::On as u8) != 0 {
+                InternationalMode::On
+            } else {
+                InternationalMode::Off
+            };
+
+        let cache_mode =
+            if flags & (CacheMode::On as u8) != 0 {
+                CacheMode::On
+            } else {
+                CacheMode::Off
+            };
+
+        let mut boot_code = [0u8; BOOT_BLOCK_BOOT_CODE_SIZE];
+        boot_code.copy_from_slice(&data[12..]);
+
+        Ok(Self {
+            checksum_computed,
+            checksum_expected,
+            filesystem_type,
+            international_mode,
+            cache_mode,
+            root_block_address,
+            boot_code,
+        })
     }
 }
 
-impl WriteToDisk for BootBlock {
-    fn write(&self, disk: &mut Disk) -> Result<(), Error> {
+#[derive(Clone, Copy, Debug)]
+pub struct BootBlockWriter {
+    boot_code: [u8; BOOT_BLOCK_BOOT_CODE_SIZE],
+    filesystem_type: FilesystemType,
+    international_mode: InternationalMode,
+    cache_mode: CacheMode,
+}
+
+impl Default for BootBlockWriter {
+    fn default() -> Self {
+        return Self {
+            boot_code: [0u8; BOOT_BLOCK_BOOT_CODE_SIZE],
+            filesystem_type: FilesystemType::OFS,
+            cache_mode: CacheMode::Off,
+            international_mode: InternationalMode::Off,
+        }
+    }
+}
+
+impl BootBlockWriter {
+    pub fn width_filesystem_type(
+        &mut self,
+        filesystem_type: FilesystemType,
+    ) -> &mut Self {
+        self.filesystem_type = filesystem_type;
+        self
+    }
+
+    pub fn with_international_mode(
+        &mut self,
+        international_mode: InternationalMode,
+    )-> &mut Self {
+        self.international_mode = international_mode;
+        self
+    }
+
+    pub fn with_cache_mode(
+        &mut self,
+        cache_mode: CacheMode,
+    ) -> &mut Self {
+        self.cache_mode = cache_mode;
+        self
+    }
+
+    // pub fn with_boot_code(
+    //     &mut self,
+    //     boot_code: &[u8; BOOT_BLOCK_BOOT_CODE_SIZE],
+    // ) -> &mut Self {
+    //     self.boot_code.copy_from_slice(boot_code);
+    //     self
+    // }
+
+    pub fn write(&self, disk: &mut Disk) -> Result<(), Error> {
         let mut data = [0u8; 2*BLOCK_SIZE];
 
+        let root_block_address: u32 = (disk.disk_type() as u32)/2;
+        let flags: u8 =
+            self.cache_mode as u8
+            | self.filesystem_type as u8
+            | self.international_mode as u8;
+
         data[BOOT_BLOCK_DISK_TYPE_SLICE].copy_from_slice(
-            &[0x44, 0x4f, 0x53, self.flags],
+            &[0x44, 0x4f, 0x53, flags],
         );
         data[BOOT_BLOCK_ROOT_BLOCK_SLICE].copy_from_slice(
-            &self.root_block_address.to_be_bytes(),
+            &root_block_address.to_be_bytes(),
         );
         data[BOOT_BLOCK_BOOT_CODE_SLICE].copy_from_slice(
             &self.boot_code,
@@ -131,58 +176,5 @@ impl WriteToDisk for BootBlock {
         disk.block_mut(1)?.copy_from_slice(&data[BLOCK_SIZE..]);
 
         Ok(())
-    }
-}
-
-#[derive(Clone, Copy, Debug)]
-pub struct BootBlockBuilder {
-    boot_code: [u8; BOOT_BLOCK_BOOT_CODE_SIZE],
-    flags: u8,
-    root_block_address: u32,
-}
-
-impl BootBlockBuilder {
-    pub fn new(disk_type: DiskType) -> Self {
-        let boot_code = [0u8; BOOT_BLOCK_BOOT_CODE_SIZE];
-        let root_block_address = ((disk_type as usize)/2) as u32;
-        let flags = 0;
-
-        Self {
-            boot_code,
-            flags,
-            root_block_address,
-        }
-    }
-
-    pub fn width_filesystem_type(
-        &mut self,
-        filesystem_type: FilesystemType,
-    ) -> &mut Self {
-        self.flags |= filesystem_type as u8;
-        self
-    }
-
-    pub fn with_international_mode(
-        &mut self,
-        international_mode: InternationalMode,
-    )-> &mut Self {
-        self.flags |= international_mode as u8;
-        self
-    }
-
-    pub fn with_cache_mode(
-        &mut self,
-        cache_mode: CacheMode,
-    ) -> &mut Self {
-        self.flags |= cache_mode as u8;
-        self
-    }
-
-    pub fn build(self) -> BootBlock {
-        BootBlock {
-            boot_code: self.boot_code,
-            flags: self.flags,
-            root_block_address: self.root_block_address,
-        }
     }
 }

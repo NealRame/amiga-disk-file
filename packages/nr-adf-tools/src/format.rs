@@ -49,7 +49,7 @@ pub fn run(args: &Args) -> Result<()> {
         AmigaDosFormater::default()
             .with_cache_mode(args.cache_mode)
             .with_international_mode(args.international_mode)
-            .width_filesystem_type(args.filesystem_type)
+            .with_filesystem_type(args.filesystem_type)
             .format(disk, &args.volume_name)?;
 
     write_disk_file(&args.disk_file_path, fs.disk())?;

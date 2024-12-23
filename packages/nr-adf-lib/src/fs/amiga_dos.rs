@@ -1,5 +1,6 @@
 use std::path::Path;
 use std::path::PathBuf;
+use std::time::SystemTime;
 
 use crate::disk::Disk;
 use crate::errors::Error;
@@ -27,18 +28,11 @@ impl AmigaDos {
         &self.disk
     }
 
-    pub fn root_block(&self) -> Result<RootBlock, Error> {
+    fn root_block(&self) -> Result<RootBlock, Error> {
         let mut root_block = RootBlock::default();
 
         root_block.read(&self.disk)?;
         Ok(root_block)
-    }
-
-    pub fn boot_block(&self) -> Result<BootBlock, Error> {
-        let mut boot_block = BootBlock::default();
-
-        boot_block.read(&self.disk)?;
-        Ok(boot_block)
     }
 }
 
@@ -59,6 +53,38 @@ impl AmigaDos {
 }
 
 /******************************************************************************
+* AmigaDosInfo ****************************************************************
+******************************************************************************/
+
+#[derive(Clone, Debug)]
+pub struct AmigaDosInfo {
+    pub volume_name: String,
+    pub filesystem_type: FilesystemType,
+    pub cache_mode: CacheMode,
+    pub international_mode: InternationalMode,
+    pub root_alteration_date: SystemTime,
+    pub root_creation_date: SystemTime,
+    pub volume_alteration_date: SystemTime,
+}
+
+impl AmigaDos {
+    pub fn info(&self) -> Result<AmigaDosInfo, Error> {
+        let boot_block = BootBlockReader::from_disk(self.disk())?;
+        let root_block = self.root_block()?;
+
+        Ok(AmigaDosInfo {
+            filesystem_type: boot_block.filesystem_type,
+            cache_mode: boot_block.cache_mode,
+            international_mode: boot_block.international_mode,
+            root_alteration_date: root_block.root_alteration_date,
+            root_creation_date: root_block.root_creation_date,
+            volume_alteration_date: root_block.volume_alteration_date,
+            volume_name: root_block.volume_name,
+        })
+    }
+}
+
+/******************************************************************************
 * AmigaDosFormater ************************************************************
 ******************************************************************************/
 
@@ -70,7 +96,7 @@ pub struct AmigaDosFormater {
 }
 
 impl AmigaDosFormater {
-    pub fn width_filesystem_type(
+    pub fn with_filesystem_type(
         &mut self,
         filesystem_type: FilesystemType,
     ) -> &mut Self {
@@ -99,11 +125,10 @@ impl AmigaDosFormater {
         mut disk: Disk,
         volume_name: &str,
     ) -> Result<AmigaDos, Error> {
-        BootBlockBuilder::new(disk.disk_type())
+        BootBlockWriter::default()
             .width_filesystem_type(self.filesystem_type)
             .with_cache_mode(self.filesystem_cache_mode)
             .with_international_mode(self.filesystem_intl_mode)
-            .build()
             .write(&mut disk)?;
 
         RootBlock::with_volume_name(volume_name).write(&mut disk)?;

@@ -13,4 +13,5 @@ pub mod options;
 pub mod amiga_dos;
 
 pub use amiga_dos::*;
+pub use boot_block::*;
 pub use options::*;
