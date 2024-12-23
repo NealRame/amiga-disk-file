@@ -24,7 +24,7 @@ fn compute_checksum(data: &[u8], offset: usize) -> u32 {
             (checksum, _) = checksum.overflowing_add(v);
         }
     }
-    !checksum
+    checksum.wrapping_neg()
 }
 
 /******************************************************************************
