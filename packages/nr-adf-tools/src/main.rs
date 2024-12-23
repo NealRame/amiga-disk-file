@@ -3,6 +3,7 @@ mod cli_common;
 mod create;
 mod format;
 mod info;
+mod ls;
 
 use clap::{Parser, Subcommand};
 
@@ -14,6 +15,8 @@ pub enum Commands {
     Format(format::Args),
     /// Get info about a given disk file
     Info(info::Args),
+    /// List files
+    Ls(ls::Args),
 }
 
 #[derive(Parser)]
@@ -31,6 +34,7 @@ fn main() {
         Commands::Create(args) => create::run(args),
         Commands::Format(args) => format::run(args),
         Commands::Info(args) => info::run(args),
+        Commands::Ls(args) => ls::run(args),
     };
 
     if let Err(err) = res {

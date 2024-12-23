@@ -131,22 +131,23 @@ impl Iterator for ReadDir<'_> {
         }
 
         if self.next_block_addr == 0 {
-            self.next_hash_table_index =
-                self.hash_table
-                    .iter()
-                    .skip(self.next_hash_table_index)
-                    .position(|&v| v != 0)
-                    .unwrap_or(BLOCK_HASH_TABLE_SIZE);
-
-            self.next_block_addr =
-                self.hash_table
-                    .get(self.next_hash_table_index)
-                    .copied()
-                    .unwrap_or(0) as LBAAddress;
+            match self.hash_table.iter().skip(self.next_hash_table_index).position(|&v| v != 0) {
+                Some(index) => {
+                    self.next_hash_table_index += index;
+                    self.next_block_addr =
+                    self.hash_table
+                        .get(self.next_hash_table_index)
+                        .copied()
+                        .unwrap_or(0) as LBAAddress;
+                    self.next_hash_table_index += 1;
+                },
+                _ => {
+                    self.next_hash_table_index = BLOCK_HASH_TABLE_SIZE;
+                }
+            }
 
             return self.next();
         }
-
 
         let entry = DirEntry::try_from_disk(
             self.disk,
