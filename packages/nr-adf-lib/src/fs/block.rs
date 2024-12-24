@@ -24,7 +24,7 @@ fn compute_checksum(data: &[u8], offset: usize) -> u32 {
             (checksum, _) = checksum.overflowing_add(v);
         }
     }
-    checksum.wrapping_neg()
+    checksum.wrapping_neg() //
 }
 
 /******************************************************************************
@@ -127,6 +127,20 @@ impl BlockReader<'_> {
         v.resize(len, 0);
         self.read_u8_array(offset, &mut v)?;
         Ok(v)
+    }
+
+    pub fn read_hash_table(
+        &self,
+    ) -> Result<Vec<u32>, Error> {
+        self.verify_block_primary_type(BlockPrimaryType::Header)?;
+        self.verify_block_secondary_type(&[
+            BlockSecondaryType::Root,
+            BlockSecondaryType::Directory,
+        ])?;
+        self.read_u32_vector(
+            BLOCK_HASH_TABLE_OFFSET,
+            BLOCK_HASH_TABLE_SIZE,
+        )
     }
 
     pub fn read_string(

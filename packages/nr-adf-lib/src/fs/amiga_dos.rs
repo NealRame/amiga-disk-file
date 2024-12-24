@@ -3,10 +3,13 @@ use std::path::PathBuf;
 use std::time::SystemTime;
 
 use crate::disk::Disk;
+use crate::disk::LBAAddress;
 use crate::errors::Error;
 
 use super::block::*;
 use super::boot_block::*;
+use super::constants::*;
+use super::name::hash_name;
 use super::root_block::*;
 
 use super::options::*;
@@ -39,14 +42,83 @@ impl AmigaDos {
 /******************************************************************************
 * AmigaDos ReadDir ************************************************************
 ******************************************************************************/
+fn split_path<P: AsRef<Path>>(
+    path: P,
+) -> Option<Vec<String>> {
+    path.as_ref().to_str()
+        .map(|path| path.split("/"))
+        .map(|strs| strs.filter_map(|s| {
+            if s.len() > 0 {
+                Some(String::from(s))
+            } else {
+                None
+            }
+        }))
+        .map(|res| res.collect::<Vec<String>>())
+}
+
+
 impl AmigaDos {
+    fn lookup_chain(
+        &self,
+        name: &str,
+        block_addr: LBAAddress,
+    ) -> Result<Option<LBAAddress>, Error> {
+        let disk = self.disk();
+        let mut addr = block_addr;
+
+        while addr != 0 {
+            let br = BlockReader::try_from_disk(disk, addr)?;
+            let entry_name = br.read_name()?;
+
+            if entry_name == name {
+                return Ok(Some(addr));
+            }
+
+            addr = br.read_u32(BLOCK_HASH_CHAIN_NEXT_OFFSET)? as LBAAddress;
+        }
+
+        Ok(None)
+    }
+
+    fn lookup<P: AsRef<Path>>(
+        &self,
+        path: P,
+    ) -> Result<LBAAddress, Error> {
+        if let Some(path) = split_path(path) {
+            let disk = self.disk();
+            let boot_block = BootBlockReader::from_disk(disk)?;
+            let international_mode = boot_block.international_mode;
+            let mut block_addr = boot_block.root_block_address;
+
+            for name in path {
+                let br = BlockReader::try_from_disk(disk, block_addr)?;
+                let hash_table = br.read_hash_table()?;
+                let hash_index = hash_name(&name, international_mode);
+                let addr = hash_table[hash_index] as LBAAddress;
+
+                if let Some(addr) = self.lookup_chain(&name, addr)? {
+                    block_addr = addr;
+                } else {
+                    return Err(Error::NotFoundError);
+                }
+            }
+
+            Ok(block_addr)
+        } else {
+            Err(Error::InvalidPathError)
+        }
+    }
+
     pub fn read_dir<P: AsRef<Path>>(
         &self,
         path: P,
     ) -> Result<ReadDir, Error> {
+        let block_addr = self.lookup(&path)?;
+
         ReadDir::try_from_disk(
             self.disk(),
-            880,
+            block_addr,
             PathBuf::from(path.as_ref())
         )
     }

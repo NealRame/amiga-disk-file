@@ -9,6 +9,8 @@ pub enum Error {
     InvalidNameError,
     InvalidNameLengthError(usize),
 
+    InvalidPathError,
+
     InvalidStringError,
 
     InvalidFilesystemTypeError,
@@ -18,6 +20,8 @@ pub enum Error {
     UnexpectedFilesystemBlockPrimaryTypeError(u32),
     InvalidFilesystemBlockSecondaryTypeError(u32),
     UnexpectedFilesystemBlockSecondaryTypeError(u32),
+
+    NotFoundError,
 
     DiskInvalidLBAAddressError(usize),
     DiskInvalidBlockOffsetError(usize),
