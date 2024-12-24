@@ -136,8 +136,8 @@ impl AmigaDos {
 #[derive(Clone, Debug, Default)]
 pub struct AmigaDosFormater {
     filesystem_type: FilesystemType,
-    filesystem_cache_mode: CacheMode,
-    filesystem_intl_mode: InternationalMode,
+    cache_mode: CacheMode,
+    international_mode: InternationalMode,
 }
 
 impl AmigaDosFormater {
@@ -153,7 +153,7 @@ impl AmigaDosFormater {
         &mut self,
         international_mode: InternationalMode,
     )-> &mut Self {
-        self.filesystem_intl_mode = international_mode;
+        self.international_mode = international_mode;
         self
     }
 
@@ -161,7 +161,7 @@ impl AmigaDosFormater {
         &mut self,
         cache_mode: CacheMode,
     ) -> &mut Self {
-        self.filesystem_cache_mode = cache_mode;
+        self.cache_mode = cache_mode;
         self
     }
 
@@ -172,8 +172,8 @@ impl AmigaDosFormater {
     ) -> Result<AmigaDos, Error> {
         BootBlockWriter::default()
             .width_filesystem_type(self.filesystem_type)
-            .with_cache_mode(self.filesystem_cache_mode)
-            .with_international_mode(self.filesystem_intl_mode)
+            .with_cache_mode(self.cache_mode)
+            .with_international_mode(self.international_mode)
             .write(&mut disk)?;
 
         RootBlock::with_volume_name(volume_name).write(&mut disk)?;
