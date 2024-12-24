@@ -53,9 +53,13 @@ impl BootBlockReader {
             return Err(Error::CorruptedImageFile);
         }
 
-        let root_block_address = u32::from_be_bytes(data[8..12].try_into().unwrap()) as LBAAddress;
-        let checksum_expected = u32::from_be_bytes(data[4..8].try_into().unwrap());
         let checksum_computed = compute_checksum(&data);
+        let checksum_expected = u32::from_be_bytes(
+            data[BOOT_BLOCK_CHECKSUM_SLICE].try_into().unwrap()
+        );
+        let root_block_address = u32::from_be_bytes(
+            data[BOOT_BLOCK_ROOT_BLOCK_SLICE].try_into().unwrap()
+        ) as LBAAddress;
 
         let flags = data[3];
 
@@ -81,7 +85,7 @@ impl BootBlockReader {
             };
 
         let mut boot_code = [0u8; BOOT_BLOCK_BOOT_CODE_SIZE];
-        boot_code.copy_from_slice(&data[12..]);
+        boot_code.copy_from_slice(&data[BOOT_BLOCK_BOOT_CODE_SLICE]);
 
         Ok(Self {
             checksum_computed,
