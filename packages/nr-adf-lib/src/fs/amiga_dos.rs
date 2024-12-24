@@ -8,8 +8,6 @@ use crate::errors::Error;
 
 use super::block::*;
 use super::boot_block::*;
-use super::constants::*;
-use super::name::hash_name;
 use super::root_block::*;
 
 use super::options::*;
@@ -59,28 +57,6 @@ fn split_path<P: AsRef<Path>>(
 
 
 impl AmigaDos {
-    fn lookup_chain(
-        &self,
-        name: &str,
-        block_addr: LBAAddress,
-    ) -> Result<Option<LBAAddress>, Error> {
-        let disk = self.disk();
-        let mut addr = block_addr;
-
-        while addr != 0 {
-            let br = BlockReader::try_from_disk(disk, addr)?;
-            let entry_name = br.read_name()?;
-
-            if entry_name == name {
-                return Ok(Some(addr));
-            }
-
-            addr = br.read_u32(BLOCK_HASH_CHAIN_NEXT_OFFSET)? as LBAAddress;
-        }
-
-        Ok(None)
-    }
-
     fn lookup<P: AsRef<Path>>(
         &self,
         path: P,
@@ -93,11 +69,8 @@ impl AmigaDos {
 
             for name in path {
                 let br = BlockReader::try_from_disk(disk, block_addr)?;
-                let hash_table = br.read_hash_table()?;
-                let hash_index = hash_name(&name, international_mode);
-                let addr = hash_table[hash_index] as LBAAddress;
 
-                if let Some(addr) = self.lookup_chain(&name, addr)? {
+                if let Some(addr) = br.lookup(&name, international_mode)? {
                     block_addr = addr;
                 } else {
                     return Err(Error::NotFoundError);

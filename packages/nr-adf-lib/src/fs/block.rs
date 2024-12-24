@@ -7,7 +7,7 @@ use crate::disk::{
 
 use crate::errors::Error;
 
-use super::block_type::*;
+use super::{block_type::*, InternationalMode};
 use super::constants::*;
 use super::name::*;
 
@@ -32,6 +32,7 @@ fn compute_checksum(data: &[u8], offset: usize) -> u32 {
 ******************************************************************************/
 
 pub struct BlockReader<'disk> {
+    disk: &'disk Disk,
     data: &'disk [u8]
 }
 
@@ -88,7 +89,11 @@ impl<'disk> BlockReader<'disk> {
         addr: LBAAddress,
     ) -> Result<Self, Error> {
         let data = disk.block(addr)?;
-        Ok(Self { data })
+
+        Ok(Self {
+            disk,
+            data,
+        })
     }
 }
 
@@ -219,6 +224,55 @@ impl BlockReader<'_> {
         } else {
             Ok(())
         }
+    }
+}
+
+impl BlockReader<'_> {
+    pub fn lookup(
+        &self,
+        name: &str,
+        international_mode: InternationalMode,
+    ) -> Result<Option<LBAAddress>, Error> {
+        let hash_table = self.read_hash_table()?;
+        let hash_index = hash_name(&name, international_mode);
+        let mut addr = hash_table[hash_index] as LBAAddress;
+
+        while addr != 0 {
+            let br = BlockReader::try_from_disk(self.disk, addr)?;
+            let entry_name = br.read_name()?;
+
+            if entry_name == name {
+                return Ok(Some(addr));
+            }
+
+            addr = br.read_u32(BLOCK_HASH_CHAIN_NEXT_OFFSET)? as LBAAddress;
+        }
+
+        Ok(None)
+    }
+}
+
+impl BlockReader<'_> {
+    pub fn read_dir(
+        &self,
+    ) -> Result<Vec<LBAAddress>, Error> {
+        let mut entries = vec![];
+        let hash_table = self.read_hash_table()?;
+
+        for v in hash_table.iter().copied() {
+            let mut block_addr = v;
+
+            while block_addr != 0 {
+                entries.push(block_addr as LBAAddress);
+                let br = BlockReader::try_from_disk(
+                    self.disk,
+                    block_addr as LBAAddress
+                )?;
+
+                block_addr = br.read_u32(BLOCK_HASH_CHAIN_NEXT_OFFSET)?;
+            }
+        }
+        Ok(entries)
     }
 }
 

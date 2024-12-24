@@ -8,7 +8,6 @@ use crate::errors::*;
 
 use super::block::*;
 use super::block_type::*;
-use super::constants::*;
 
 
 #[derive(Clone, Copy, Debug)]
@@ -24,7 +23,6 @@ impl Default for FileType {
 
 #[derive(Clone, Debug, Default)]
 pub struct DirEntry {
-    block_addr_hash_next: LBAAddress,
     file_type: FileType,
     name: String,
     path: PathBuf,
@@ -46,11 +44,11 @@ impl DirEntry {
 
 impl DirEntry {
     pub fn try_from_disk(
-        disk: &Disk,
-        block_addr: LBAAddress,
         parent_path: &Path,
+        disk: &Disk,
+        addr: LBAAddress,
     ) -> Result<Self, Error> {
-        let br = BlockReader::try_from_disk(disk, block_addr)?;
+        let br = BlockReader::try_from_disk(disk, addr)?;
 
         br.verify_block_primary_type(BlockPrimaryType::Header)?;
 
@@ -69,55 +67,36 @@ impl DirEntry {
             },
         };
 
-        let block_addr_hash_next = br.read_u32(BLOCK_HASH_CHAIN_NEXT_OFFSET)? as usize;
         let name = br.read_name()?;
         let path = parent_path.join(&name);
 
         Ok(Self {
-            block_addr_hash_next,
             file_type,
             name,
             path,
         })
     }
-
 }
 
 pub struct ReadDir<'disk> {
     disk: &'disk Disk,
+    entry_block_addr_list: Vec<LBAAddress>,
     path: PathBuf,
-
-    hash_table: Vec<u32>,
-
-    next_hash_table_index: usize,
-    next_block_addr: LBAAddress,
 }
 
 impl<'disk> ReadDir<'disk> {
-    pub fn try_from_disk(
+    pub fn try_from_disk<P: AsRef<Path>>(
         disk: &'disk Disk,
         block_addr: LBAAddress,
-        path: PathBuf,
+        path: P,
     ) -> Result<Self, Error> {
         let br = BlockReader::try_from_disk(disk, block_addr)?;
-
-        br.verify_block_primary_type(BlockPrimaryType::Header)?;
-        br.verify_block_secondary_type(&[
-            BlockSecondaryType::Root,
-            BlockSecondaryType::Directory,
-        ])?;
-
-        let hash_table = br.read_u32_vector(
-            BLOCK_HASH_TABLE_OFFSET,
-            BLOCK_HASH_TABLE_SIZE,
-        )?;
+        let entry_block_addr_list = br.read_dir()?;
 
         Ok(Self {
             disk,
-            path,
-            hash_table,
-            next_hash_table_index: 0,
-            next_block_addr: 0,
+            entry_block_addr_list,
+            path: PathBuf::from(path.as_ref()),
         })
     }
 }
@@ -126,40 +105,8 @@ impl Iterator for ReadDir<'_> {
     type Item = Result<DirEntry, Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.next_hash_table_index >= BLOCK_HASH_TABLE_SIZE {
-            return None;
-        }
-
-        if self.next_block_addr == 0 {
-            match self.hash_table.iter().skip(self.next_hash_table_index).position(|&v| v != 0) {
-                Some(index) => {
-                    self.next_hash_table_index += index;
-                    self.next_block_addr =
-                    self.hash_table
-                        .get(self.next_hash_table_index)
-                        .copied()
-                        .unwrap_or(0) as LBAAddress;
-                    self.next_hash_table_index += 1;
-                },
-                _ => {
-                    self.next_hash_table_index = BLOCK_HASH_TABLE_SIZE;
-                }
-            }
-
-            return self.next();
-        }
-
-        let entry = DirEntry::try_from_disk(
-            self.disk,
-            self.next_block_addr,
-            self.path.as_ref(),
-        );
-
-        self.next_block_addr =
-            entry.as_ref()
-                .map(|entry| entry.block_addr_hash_next)
-                .unwrap_or(0);
-
-        Some(entry)
+        self.entry_block_addr_list
+            .pop()
+            .map(|addr| DirEntry::try_from_disk(&self.path, self.disk, addr))
     }
 }
