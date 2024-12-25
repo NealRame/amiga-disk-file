@@ -6,9 +6,51 @@ use std::path::{
 use crate::disk::*;
 use crate::errors::*;
 
+use super::amiga_dos::*;
 use super::block::*;
 use super::block_type::*;
+use super::boot_block::*;
 
+
+fn path_split<P: AsRef<Path>>(
+    path: P,
+) -> Option<Vec<String>> {
+    path.as_ref().to_str()
+        .map(|path| path.split("/"))
+        .map(|strs| strs.filter_map(|s| {
+            if s.len() > 0 {
+                Some(String::from(s))
+            } else {
+                None
+            }
+        }))
+        .map(|res| res.collect::<Vec<String>>())
+}
+
+fn path_lookup<P: AsRef<Path>>(
+    disk: &Disk,
+    path: P,
+) -> Result<LBAAddress, Error> {
+    if let Some(path) = path_split(path) {
+        let boot_block = BootBlockReader::from_disk(disk)?;
+        let international_mode = boot_block.international_mode;
+        let mut block_addr = boot_block.root_block_address;
+
+        for name in path {
+            let br = BlockReader::try_from_disk(disk, block_addr)?;
+
+            if let Some(addr) = br.lookup(&name, international_mode)? {
+                block_addr = addr;
+            } else {
+                return Err(Error::NotFoundError);
+            }
+        }
+
+        Ok(block_addr)
+    } else {
+        Err(Error::InvalidPathError)
+    }
+}
 
 #[derive(Clone, Copy, Debug)]
 pub enum FileType {
@@ -85,11 +127,11 @@ pub struct ReadDir<'disk> {
 }
 
 impl<'disk> ReadDir<'disk> {
-    pub fn try_from_disk<P: AsRef<Path>>(
+    fn try_from_disk<P: AsRef<Path>>(
         disk: &'disk Disk,
-        block_addr: LBAAddress,
         path: P,
     ) -> Result<Self, Error> {
+        let block_addr = path_lookup(disk, &path)?;
         let br = BlockReader::try_from_disk(disk, block_addr)?;
         let entry_block_addr_list = br.read_dir()?;
 
@@ -108,5 +150,14 @@ impl Iterator for ReadDir<'_> {
         self.entry_block_addr_list
             .pop()
             .map(|addr| DirEntry::try_from_disk(&self.path, self.disk, addr))
+    }
+}
+
+impl AmigaDos {
+    pub fn read_dir<P: AsRef<Path>>(
+        &self,
+        path: P,
+    ) -> Result<ReadDir, Error> {
+        ReadDir::try_from_disk(self.disk(), &path)
     }
 }

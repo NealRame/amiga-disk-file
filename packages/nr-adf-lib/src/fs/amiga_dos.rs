@@ -1,9 +1,7 @@
-use std::path::Path;
-use std::path::PathBuf;
 use std::time::SystemTime;
 
 use crate::disk::Disk;
-use crate::disk::LBAAddress;
+
 use crate::errors::Error;
 
 use super::block::*;
@@ -11,7 +9,6 @@ use super::boot_block::*;
 use super::root_block::*;
 
 use super::options::*;
-use super::read_dir::*;
 
 
 pub struct AmigaDos {
@@ -34,66 +31,6 @@ impl AmigaDos {
 
         root_block.read(&self.disk)?;
         Ok(root_block)
-    }
-}
-
-/******************************************************************************
-* AmigaDos ReadDir ************************************************************
-******************************************************************************/
-fn split_path<P: AsRef<Path>>(
-    path: P,
-) -> Option<Vec<String>> {
-    path.as_ref().to_str()
-        .map(|path| path.split("/"))
-        .map(|strs| strs.filter_map(|s| {
-            if s.len() > 0 {
-                Some(String::from(s))
-            } else {
-                None
-            }
-        }))
-        .map(|res| res.collect::<Vec<String>>())
-}
-
-
-impl AmigaDos {
-    fn lookup<P: AsRef<Path>>(
-        &self,
-        path: P,
-    ) -> Result<LBAAddress, Error> {
-        if let Some(path) = split_path(path) {
-            let disk = self.disk();
-            let boot_block = BootBlockReader::from_disk(disk)?;
-            let international_mode = boot_block.international_mode;
-            let mut block_addr = boot_block.root_block_address;
-
-            for name in path {
-                let br = BlockReader::try_from_disk(disk, block_addr)?;
-
-                if let Some(addr) = br.lookup(&name, international_mode)? {
-                    block_addr = addr;
-                } else {
-                    return Err(Error::NotFoundError);
-                }
-            }
-
-            Ok(block_addr)
-        } else {
-            Err(Error::InvalidPathError)
-        }
-    }
-
-    pub fn read_dir<P: AsRef<Path>>(
-        &self,
-        path: P,
-    ) -> Result<ReadDir, Error> {
-        let block_addr = self.lookup(&path)?;
-
-        ReadDir::try_from_disk(
-            self.disk(),
-            block_addr,
-            PathBuf::from(path.as_ref())
-        )
     }
 }
 
