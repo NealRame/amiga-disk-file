@@ -1,9 +1,5 @@
-use crate::disk::{
-    BLOCK_SIZE,
-    Disk,
-    LBAAddress,
-};
-use crate::errors::Error;
+use crate::disk::*;
+use crate::errors::*;
 
 use super::constants::*;
 use super::options::*;
@@ -35,67 +31,90 @@ fn compute_checksum(data: &[u8]) -> u32 {
 }
 
 #[derive(Clone, Copy, Debug)]
-pub struct BootBlockReader {
-    pub checksum_computed: u32,
-    pub checksum_expected: u32,
-    pub filesystem_type: FilesystemType,
-    pub international_mode: InternationalMode,
-    pub cache_mode: CacheMode,
-    pub root_block_address: LBAAddress,
-    pub boot_code: [u8; BOOT_BLOCK_BOOT_CODE_SIZE],
+pub struct BootBlock {
+    data: [u8; 2*BLOCK_SIZE],
 }
 
-impl BootBlockReader {
-    pub fn from_disk(disk: &Disk) -> Result<Self, Error> {
-        let data = disk.read_blocks(0, 2)?;
-
-        if &data[0..3] != &[0x44, 0x4f, 0x53] { // DOS
-            return Err(Error::CorruptedImageFile);
+impl Default for BootBlock {
+    fn default() -> Self {
+        Self {
+            data: [0; 2*BLOCK_SIZE],
         }
+    }
+}
 
-        let checksum_computed = compute_checksum(&data);
-        let checksum_expected = u32::from_be_bytes(
-            data[BOOT_BLOCK_CHECKSUM_SLICE].try_into().unwrap()
-        );
-        let root_block_address = u32::from_be_bytes(
-            data[BOOT_BLOCK_ROOT_BLOCK_SLICE].try_into().unwrap()
-        ) as LBAAddress;
+impl BootBlock {
+    pub fn try_from_disk(disk: &Disk) -> Result<Self, Error> {
+        let mut boot_block = BootBlock::default();
 
-        let flags = data[3];
+        disk.read::<{2*BLOCK_SIZE}>(0, &mut boot_block.data)?;
 
-        let filesystem_type =
-            if flags & (FilesystemType::FFS as u8) != 0 {
-                FilesystemType::FFS
-            } else {
-                FilesystemType::OFS
-            };
+        if &boot_block.data[0..3] != &[0x44, 0x4f, 0x53] { // DOS
+            Err(Error::CorruptedImageFile)
+        } else {
+            Ok(boot_block)
+        }
+    }
+}
 
-        let international_mode =
-            if flags & (InternationalMode::On as u8) != 0 {
-                InternationalMode::On
-            } else {
-                InternationalMode::Off
-            };
+impl BootBlock {
+    pub fn get_filesystem_type(&self) -> FilesystemType {
+        let flags = self.data[3];
 
-        let cache_mode =
-            if flags & (CacheMode::On as u8) != 0 {
-                CacheMode::On
-            } else {
-                CacheMode::Off
-            };
+        if flags & (FilesystemType::FFS as u8) != 0 {
+            FilesystemType::FFS
+        } else {
+            FilesystemType::OFS
+        }
+    }
 
-        let mut boot_code = [0u8; BOOT_BLOCK_BOOT_CODE_SIZE];
-        boot_code.copy_from_slice(&data[BOOT_BLOCK_BOOT_CODE_SLICE]);
+    pub fn get_international_mode(&self) -> InternationalMode {
+        let flags = self.data[3];
 
-        Ok(Self {
-            checksum_computed,
-            checksum_expected,
-            filesystem_type,
-            international_mode,
-            cache_mode,
-            root_block_address,
-            boot_code,
-        })
+        if flags & (InternationalMode::On as u8) != 0 {
+            InternationalMode::On
+        } else {
+            InternationalMode::Off
+        }
+    }
+
+    pub fn get_cache_mode(&self) -> CacheMode {
+        let flags = self.data[3];
+
+        if flags & (CacheMode::On as u8) != 0 {
+            CacheMode::On
+        } else {
+            CacheMode::Off
+        }
+    }
+
+    pub fn get_root_block_address(&self) -> LBAAddress {
+        u32::from_be_bytes(
+            self.data[BOOT_BLOCK_ROOT_BLOCK_SLICE].try_into().unwrap()
+        ) as usize
+    }
+
+    pub fn get_boot_code(&self) -> &[u8] {
+        &self.data[BOOT_BLOCK_BOOT_CODE_SLICE]
+    }
+
+    pub fn get_checksum(&self) -> u32 {
+        u32::from_be_bytes(
+            self.data[BOOT_BLOCK_CHECKSUM_SLICE].try_into().unwrap()
+        )
+    }
+
+    pub fn verify_checksum(
+        &self,
+        expected: u32,
+    ) -> Result<(), Error> {
+        let checksum = compute_checksum(&self.data);
+
+        if checksum != expected {
+            Err(Error::CorruptedImageFile)
+        } else {
+            Ok(())
+        }
     }
 }
 

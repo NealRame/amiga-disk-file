@@ -110,18 +110,23 @@ impl Disk {
         self.disk_data.as_mut_slice()
     }
 
-    pub fn read_blocks(
+    pub fn read<const N: usize>(
         &self,
         addr: LBAAddress,
-        count: usize,
-    ) -> Result<Vec<u8>, Error> {
-        let first = addr;
-        let last = addr + count;
-        let mut data = Vec::with_capacity(addr*BLOCK_SIZE);
+        data: &mut [u8; N],
+    ) -> Result<(), Error> {
+        let count = if N%BLOCK_SIZE == 0 {
+            N/BLOCK_SIZE
+        } else {
+            N/BLOCK_SIZE + 1
+        };
 
-        for addr in first..last {
-            data.extend_from_slice(self.block(addr)?);
+        for i in 0..count {
+            data[i*BLOCK_SIZE..(i + 1)*BLOCK_SIZE].copy_from_slice(
+                self.block(addr + i)?
+            );
         }
-        Ok(data)
+
+        Ok(())
     }
 }

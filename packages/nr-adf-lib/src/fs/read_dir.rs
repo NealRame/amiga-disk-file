@@ -32,9 +32,9 @@ fn path_lookup<P: AsRef<Path>>(
     path: P,
 ) -> Result<LBAAddress, Error> {
     if let Some(path) = path_split(path) {
-        let boot_block = BootBlockReader::from_disk(disk)?;
-        let international_mode = boot_block.international_mode;
-        let mut block_addr = boot_block.root_block_address;
+        let boot_block = BootBlock::try_from_disk(disk)?;
+        let international_mode = boot_block.get_international_mode();
+        let mut block_addr = boot_block.get_root_block_address();
 
         for name in path {
             let br = BlockReader::try_from_disk(disk, block_addr)?;

@@ -27,8 +27,12 @@ impl AmigaDos {
     fn root_block(&self) -> Result<RootBlock, Error> {
         let mut root_block = RootBlock::default();
 
-        root_block.read(&self.disk)?;
+        root_block.read(self.disk())?;
         Ok(root_block)
+    }
+
+    fn boot_block(&self) -> Result<BootBlock, Error> {
+        BootBlock::try_from_disk(self.disk())
     }
 }
 
@@ -49,13 +53,13 @@ pub struct AmigaDosInfo {
 
 impl AmigaDos {
     pub fn info(&self) -> Result<AmigaDosInfo, Error> {
-        let boot_block = BootBlockReader::from_disk(self.disk())?;
+        let boot_block = self.boot_block()?;
         let root_block = self.root_block()?;
 
         Ok(AmigaDosInfo {
-            filesystem_type: boot_block.filesystem_type,
-            cache_mode: boot_block.cache_mode,
-            international_mode: boot_block.international_mode,
+            filesystem_type: boot_block.get_filesystem_type(),
+            cache_mode: boot_block.get_cache_mode(),
+            international_mode: boot_block.get_international_mode(),
             root_alteration_date: root_block.root_alteration_date,
             root_creation_date: root_block.root_creation_date,
             volume_alteration_date: root_block.volume_alteration_date,
