@@ -24,14 +24,14 @@ impl AmigaDos {
         &self.disk
     }
 
-    fn root_block(&self) -> Result<RootBlock, Error> {
+    pub fn get_root_block(&self) -> Result<RootBlock, Error> {
         let mut root_block = RootBlock::default();
 
         root_block.read(self.disk())?;
         Ok(root_block)
     }
 
-    fn boot_block(&self) -> Result<BootBlock, Error> {
+    pub fn get_boot_block(&self) -> Result<BootBlock, Error> {
         BootBlock::try_from_disk(self.disk())
     }
 }
@@ -53,8 +53,8 @@ pub struct AmigaDosInfo {
 
 impl AmigaDos {
     pub fn info(&self) -> Result<AmigaDosInfo, Error> {
-        let boot_block = self.boot_block()?;
-        let root_block = self.root_block()?;
+        let boot_block = self.get_boot_block()?;
+        let root_block = self.get_root_block()?;
 
         Ok(AmigaDosInfo {
             filesystem_type: boot_block.get_filesystem_type(),
