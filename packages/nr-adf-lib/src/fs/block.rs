@@ -36,6 +36,20 @@ pub struct BlockReader<'disk> {
     data: &'disk [u8]
 }
 
+impl<'disk> BlockReader<'disk> {
+    pub fn try_from_disk(
+        disk: &'disk Disk,
+        addr: LBAAddress,
+    ) -> Result<Self, Error> {
+        let data = disk.block(addr)?;
+
+        Ok(Self {
+            disk,
+            data,
+        })
+    }
+}
+
 macro_rules! generate_read_fns {
     ($($t:ty),*) => {
 
@@ -83,20 +97,6 @@ macro_rules! generate_read_fns {
 
 generate_read_fns!(u32);
 
-impl<'disk> BlockReader<'disk> {
-    pub fn try_from_disk(
-        disk: &'disk Disk,
-        addr: LBAAddress,
-    ) -> Result<Self, Error> {
-        let data = disk.block(addr)?;
-
-        Ok(Self {
-            disk,
-            data,
-        })
-    }
-}
-
 impl BlockReader<'_> {
     pub fn read_u8(
         &self,
@@ -137,8 +137,8 @@ impl BlockReader<'_> {
     pub fn read_hash_table(
         &self,
     ) -> Result<Vec<u32>, Error> {
-        self.verify_block_primary_type(BlockPrimaryType::Header)?;
-        self.verify_block_secondary_type(&[
+        self.check_block_primary_type(BlockPrimaryType::Header)?;
+        self.check_block_secondary_type(&[
             BlockSecondaryType::Root,
             BlockSecondaryType::Directory,
         ])?;
@@ -165,6 +165,15 @@ impl BlockReader<'_> {
     pub fn read_name(
         &self,
     ) -> Result<String, Error> {
+        self.check_block_primary_type(BlockPrimaryType::Header)?;
+        self.check_block_secondary_type(&[
+            BlockSecondaryType::Directory,
+            BlockSecondaryType::File,
+            BlockSecondaryType::HardLinkDirectory,
+            BlockSecondaryType::HardLinkFile,
+            BlockSecondaryType::SoftLink,
+        ])?;
+
         let len = self.read_u8(BLOCK_NAME_SIZE_OFFSET)? as usize;
 
         if len <= BLOCK_NAME_MAX_SIZE {
@@ -188,7 +197,7 @@ impl BlockReader<'_> {
         BlockSecondaryType::try_from(v)
     }
 
-    pub fn verify_block_primary_type(
+    pub fn check_block_primary_type(
         &self,
         expected_block_primary_type: BlockPrimaryType,
     ) -> Result<(), Error> {
@@ -201,7 +210,7 @@ impl BlockReader<'_> {
         }
     }
 
-    pub fn verify_block_secondary_type(
+    pub fn check_block_secondary_type(
         &self,
         expected_block_secondary_types: &[BlockSecondaryType],
     ) -> Result<(), Error> {
