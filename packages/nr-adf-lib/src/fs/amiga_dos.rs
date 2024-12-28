@@ -10,7 +10,7 @@ use super::options::*;
 
 
 pub struct AmigaDos {
-    pub(super) disk: Disk,
+    pub disk: Disk,
 }
 
 impl From<Disk> for AmigaDos {

@@ -53,8 +53,6 @@ impl AmigaDosFormater {
 
         RootBlock::with_volume_name(volume_name).write(&mut disk)?;
 
-        Ok(AmigaDos {
-            disk
-        })
+        Ok(AmigaDos::from(disk))
     }
 }
