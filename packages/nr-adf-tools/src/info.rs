@@ -6,8 +6,7 @@ use anyhow::Result;
 
 use chrono::prelude::*;
 
-use nr_adf_lib::disk::Disk;
-use nr_adf_lib::fs::amiga_dos::AmigaDos;
+use nr_adf_lib::prelude::*;
 
 
 /******************************************************************************

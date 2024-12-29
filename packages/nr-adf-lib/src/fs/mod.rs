@@ -5,15 +5,14 @@ mod datetime;
 
 mod name;
 
-mod format;
-mod info;
-mod dir;
-
 mod boot_block;
 mod root_block;
 
-pub mod options;
-pub mod amiga_dos;
+mod amiga_dos;
+mod format;
+mod info;
+mod dir;
+mod options;
 
 pub use boot_block::*;
 pub use amiga_dos::*;
