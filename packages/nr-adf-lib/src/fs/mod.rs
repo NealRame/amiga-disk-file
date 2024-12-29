@@ -7,7 +7,7 @@ mod name;
 
 mod format;
 mod info;
-mod read_dir;
+mod dir;
 
 mod boot_block;
 mod root_block;
@@ -20,4 +20,4 @@ pub use amiga_dos::*;
 pub use options::*;
 pub use info::*;
 pub use format::*;
-pub use read_dir::*;
+pub use dir::*;
