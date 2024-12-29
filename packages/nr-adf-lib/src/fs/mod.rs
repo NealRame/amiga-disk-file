@@ -9,9 +9,10 @@ mod boot_block;
 mod root_block;
 
 mod amiga_dos;
+mod dir;
 mod format;
 mod info;
-mod dir;
+mod lookup;
 mod options;
 
 pub use boot_block::*;
