@@ -10,6 +10,7 @@ mod root_block;
 
 mod amiga_dos;
 mod dir;
+mod file;
 mod format;
 mod info;
 mod lookup;

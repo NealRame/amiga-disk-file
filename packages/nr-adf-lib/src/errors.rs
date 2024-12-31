@@ -2,7 +2,11 @@ use std::fmt;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Error {
+    BadFileDescriptor,
+
     CorruptedImageFile,
+
+    InvalidDataBlockIndexError(usize),
 
     InvalidHashError(usize),
 
@@ -12,6 +16,8 @@ pub enum Error {
     InvalidPathError,
 
     InvalidStringError,
+
+    InvalidFileModeError,
 
     InvalidFilesystemTypeError,
     InvalidCacheModeError,

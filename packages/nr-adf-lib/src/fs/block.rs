@@ -148,6 +148,23 @@ impl BlockReader<'_> {
         )
     }
 
+    pub fn read_data_block_addr(
+        &self,
+        index: usize,
+    ) -> Result<LBAAddress, Error> {
+        self.check_block_primary_type(BlockPrimaryType::Header)?;
+        self.check_block_secondary_type(&[
+            BlockSecondaryType::File
+        ])?;
+
+        if index < BLOCK_DATA_BLOCKS_SIZE {
+            Err(Error::InvalidDataBlockIndexError(index))
+        } else {
+            let addr = self.read_u32(BLOCK_DATA_BLOCKS_OFFSET + 4*index)?;
+            Ok(addr as LBAAddress)
+        }
+    }
+
     pub fn read_string(
         &self,
         offset: usize,
@@ -181,6 +198,17 @@ impl BlockReader<'_> {
         } else {
             Err(Error::InvalidNameLengthError(len))
         }
+    }
+
+    pub fn read_file_size(
+        &self,
+    ) -> Result<usize, Error> {
+        self.check_block_primary_type(BlockPrimaryType::Header)?;
+        self.check_block_secondary_type(&[BlockSecondaryType::File])?;
+
+        let file_size = self.read_u32(BLOCK_FILE_SIZE)? as usize;
+
+        Ok(file_size)
     }
 
     pub fn read_block_primary_type(
