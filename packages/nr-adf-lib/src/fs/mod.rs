@@ -16,9 +16,9 @@ mod info;
 mod lookup;
 mod options;
 
-pub use boot_block::*;
 pub use amiga_dos::*;
-pub use options::*;
-pub use info::*;
-pub use format::*;
 pub use dir::*;
+pub use file::*;
+pub use format::*;
+pub use info::*;
+pub use options::*;

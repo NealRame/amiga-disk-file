@@ -1,5 +1,6 @@
 mod cli_common;
 
+mod cat;
 mod create;
 mod format;
 mod info;
@@ -15,6 +16,8 @@ pub enum Commands {
     Format(format::Args),
     /// Get info about a given disk file
     Info(info::Args),
+    /// Cat a file
+    Cat(cat::Args),
     /// List files
     Ls(ls::Args),
 }
@@ -34,6 +37,7 @@ fn main() {
         Commands::Create(args) => create::run(args),
         Commands::Format(args) => format::run(args),
         Commands::Info(args) => info::run(args),
+        Commands::Cat(args) => cat::run(args),
         Commands::Ls(args) => ls::run(args),
     };
 

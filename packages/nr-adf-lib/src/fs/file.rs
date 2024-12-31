@@ -134,8 +134,8 @@ impl<> File<'_> {
                     .min(self.block_data_size - read_data_pos);
 
             self.read_data(&mut buf[..read_data_len], read_data_pos)?;
-
             self.pos += read_data_len;
+
             count += read_data_len;
             buf = &mut buf[read_data_len..];
         }
