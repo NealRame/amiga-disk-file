@@ -17,8 +17,10 @@ pub const BLOCK_NAME_MAX_SIZE               : usize = 30;
 
 pub const BLOCK_FILE_SIZE                   : usize = BLOCK_SIZE - 0xbc;
 
-pub const BLOCK_DATA_BLOCKS_OFFSET          : usize = 0x18;
-pub const BLOCK_DATA_BLOCKS_SIZE            : usize = BLOCK_SIZE/4 - 56;
+pub const BLOCK_BLOCK_DATA_LIST_OFFSET      : usize = 0x18;
+pub const BLOCK_BLOCK_DATA_LIST_SIZE        : usize = BLOCK_SIZE/4 - 56;
+
+pub const BLOCK_BLOCK_DATA_EXTENSION_OFFSET : usize = BLOCK_SIZE - 0x08;
 
 pub const BLOCK_DATA_FFS_OFFSET             : usize = 0;
 pub const BLOCK_DATA_FFS_SIZE               : usize = BLOCK_SIZE;

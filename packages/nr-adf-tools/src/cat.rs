@@ -1,4 +1,5 @@
 use std::fs;
+use std::io::{stdout, Write};
 use std::path;
 
 use anyhow::Result;
@@ -25,15 +26,14 @@ pub fn run(args: &Args) -> Result<()> {
 
     let mut file = fs.open(&args.path, 0|FileMode::Read)?;
     let mut buf = [0; 16];
+    let mut out = stdout();
 
     loop {
-        match file.read(&mut buf) {
-            Ok(count) if count > 0 => {
-                for b in &buf[..count] {
-                    print!(" {:0>2x}", b);
-                }
-            },
-            _ => break
+        let count = file.read(&mut buf)?;
+        if count > 0 {
+            out.write(&buf[..count])?;
+        } else {
+            break
         }
     }
 

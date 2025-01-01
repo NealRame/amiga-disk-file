@@ -81,6 +81,7 @@ pub struct File<'disk> {
     disk: &'disk Disk,
     block_data_offset: usize,
     block_data_size: usize,
+    block_data_list_max_size: usize,
     header_block_addr: LBAAddress,
     mode: usize,
     pos: usize,
@@ -88,14 +89,27 @@ pub struct File<'disk> {
 }
 
 impl<> File<'_> {
-    fn get_data_block_addr(
-        &self,
-        data_block_size: usize,
-    ) -> Result<usize, Error> {
+    fn get_data_block_addr(&self) -> Result<usize, Error> {
+        let mut addr = self.header_block_addr;
+        let mut pos = self.pos;
+
+        // TODO: it feels like doing this every time is not very efficient.
+        // We'll try to optimize that later.
+        while pos >= self.block_data_list_max_size {
+            addr = BlockReader::try_from_disk(
+                self.disk,
+                addr,
+            )?.read_data_extension_block_addr()?;
+            pos -= self.block_data_list_max_size;
+        }
+
+        // let block_index = pos/self.block_data_size;
+        let block_index = BLOCK_BLOCK_DATA_LIST_SIZE - 1 - pos/self.block_data_size;
+
         BlockReader::try_from_disk(
             self.disk,
-            self.header_block_addr,
-        )?.read_data_block_addr(self.pos/data_block_size)
+            addr,
+        )?.read_data_block_addr(block_index)
     }
 
     fn read_data(
@@ -103,7 +117,7 @@ impl<> File<'_> {
         buf: &mut [u8],
         block_data_pos: usize,
     ) -> Result<(), Error> {
-        let block_addr = self.get_data_block_addr(self.block_data_size)?;
+        let block_addr = self.get_data_block_addr()?;
         let block = BlockReader::try_from_disk(self.disk, block_addr)?;
 
         block.read_u8_array(self.block_data_offset + block_data_pos, buf)
@@ -161,7 +175,10 @@ impl AmigaDos {
         let header_block_addr = self.lookup(path)?;
         let header_block = BlockReader::try_from_disk(disk, header_block_addr)?;
 
-        let (block_data_offset, block_data_size) = match filesystem_type {
+        let (
+            block_data_offset,
+            block_data_size,
+        ) = match filesystem_type {
             FilesystemType::FFS => (
                 BLOCK_DATA_FFS_OFFSET,
                 BLOCK_DATA_FFS_SIZE,
@@ -171,6 +188,8 @@ impl AmigaDos {
                 BLOCK_DATA_OFS_SIZE,
             ),
         };
+
+        let block_data_list_max_size = block_data_size*BLOCK_BLOCK_DATA_LIST_SIZE;
 
         let size = header_block.read_file_size()?;
         let pos = if mode & FileMode::Append {
@@ -183,6 +202,7 @@ impl AmigaDos {
             disk,
             block_data_offset,
             block_data_size,
+            block_data_list_max_size,
             header_block_addr,
             mode,
             pos,
