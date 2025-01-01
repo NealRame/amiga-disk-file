@@ -166,7 +166,7 @@ impl ReadFromDisk for RootBlock {
         let reader = BlockReader::try_from_disk(disk, addr)?;
 
         reader.verify_checksum(BLOCK_CHECKSUM_OFFSET)?;
-        reader.check_block_primary_type(BlockPrimaryType::Header)?;
+        reader.check_block_primary_type(&[BlockPrimaryType::Header])?;
         reader.check_block_secondary_type(&[BlockSecondaryType::Root])?;
 
         self.try_read_bitmap(&reader)?;

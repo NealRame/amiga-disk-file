@@ -37,7 +37,7 @@ impl DirEntry {
     ) -> Result<Self, Error> {
         let br = BlockReader::try_from_disk(disk, addr)?;
 
-        br.check_block_primary_type(BlockPrimaryType::Header)?;
+        br.check_block_primary_type(&[BlockPrimaryType::Header])?;
 
         let file_type = match br.read_block_secondary_type()? {
             BlockSecondaryType::File |

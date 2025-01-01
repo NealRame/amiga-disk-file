@@ -137,7 +137,7 @@ impl BlockReader<'_> {
     pub fn read_hash_table(
         &self,
     ) -> Result<Vec<u32>, Error> {
-        self.check_block_primary_type(BlockPrimaryType::Header)?;
+        self.check_block_primary_type(&[BlockPrimaryType::Header])?;
         self.check_block_secondary_type(&[
             BlockSecondaryType::Root,
             BlockSecondaryType::Directory,
@@ -152,9 +152,12 @@ impl BlockReader<'_> {
         &self,
         index: usize,
     ) -> Result<LBAAddress, Error> {
-        self.check_block_primary_type(BlockPrimaryType::Header)?;
+        self.check_block_primary_type(&[
+            BlockPrimaryType::Header,
+            BlockPrimaryType::List,
+        ])?;
         self.check_block_secondary_type(&[
-            BlockSecondaryType::File
+            BlockSecondaryType::File,
         ])?;
 
         if index < BLOCK_DATA_BLOCKS_SIZE {
@@ -182,7 +185,7 @@ impl BlockReader<'_> {
     pub fn read_name(
         &self,
     ) -> Result<String, Error> {
-        self.check_block_primary_type(BlockPrimaryType::Header)?;
+        self.check_block_primary_type(&[BlockPrimaryType::Header])?;
         self.check_block_secondary_type(&[
             BlockSecondaryType::Directory,
             BlockSecondaryType::File,
@@ -203,7 +206,7 @@ impl BlockReader<'_> {
     pub fn read_file_size(
         &self,
     ) -> Result<usize, Error> {
-        self.check_block_primary_type(BlockPrimaryType::Header)?;
+        self.check_block_primary_type(&[BlockPrimaryType::Header])?;
         self.check_block_secondary_type(&[BlockSecondaryType::File])?;
 
         let file_size = self.read_u32(BLOCK_FILE_SIZE)? as usize;
@@ -227,15 +230,17 @@ impl BlockReader<'_> {
 
     pub fn check_block_primary_type(
         &self,
-        expected_block_primary_type: BlockPrimaryType,
+        expected_block_primary_types: &[BlockPrimaryType],
     ) -> Result<(), Error> {
         let block_type = self.read_block_primary_type()?;
 
-        if block_type != expected_block_primary_type {
-            Err(Error::UnexpectedFilesystemBlockPrimaryTypeError(block_type as u32))
-        } else {
-            Ok(())
+        for expected in expected_block_primary_types {
+            if block_type == *expected {
+                return Ok(())
+            }
         }
+
+        Err(Error::UnexpectedFilesystemBlockPrimaryTypeError(block_type as u32))
     }
 
     pub fn check_block_secondary_type(
