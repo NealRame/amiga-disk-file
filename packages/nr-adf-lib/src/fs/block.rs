@@ -191,6 +191,7 @@ impl BlockReader<'_> {
             BlockSecondaryType::File,
             BlockSecondaryType::HardLinkDirectory,
             BlockSecondaryType::HardLinkFile,
+            BlockSecondaryType::Root,
             BlockSecondaryType::SoftLink,
         ])?;
 
