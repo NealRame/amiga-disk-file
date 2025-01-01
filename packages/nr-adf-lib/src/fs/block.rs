@@ -289,6 +289,10 @@ impl BlockReader<'_> {
     }
 }
 
+fn non_zero(addr: &u32) -> bool {
+    *addr != 0
+}
+
 impl BlockReader<'_> {
     pub fn read_dir(
         &self,
@@ -296,9 +300,7 @@ impl BlockReader<'_> {
         let mut entries = vec![];
         let hash_table = self.read_hash_table()?;
 
-        for v in hash_table.iter().copied() {
-            let mut block_addr = v;
-
+        for mut block_addr in hash_table.iter().copied().filter(non_zero) {
             while block_addr != 0 {
                 entries.push(block_addr as LBAAddress);
                 let br = BlockReader::try_from_disk(
