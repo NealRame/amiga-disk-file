@@ -59,7 +59,7 @@ impl TryFrom<u32> for BlockSecondaryType {
                 Ok(BlockSecondaryType::Root)
             },
             _ if value == BlockSecondaryType::Directory.into() => {
-                Ok(BlockSecondaryType::Root)
+                Ok(BlockSecondaryType::Directory)
             },
             _ if value == BlockSecondaryType::SoftLink.into() => {
                 Ok(BlockSecondaryType::SoftLink)
