@@ -161,10 +161,10 @@ impl BlockReader<'_> {
         ])?;
 
         if index < BLOCK_DATA_BLOCKS_SIZE {
-            Err(Error::InvalidDataBlockIndexError(index))
-        } else {
             let addr = self.read_u32(BLOCK_DATA_BLOCKS_OFFSET + 4*index)?;
             Ok(addr as LBAAddress)
+        } else {
+            Err(Error::InvalidDataBlockIndexError(index))
         }
     }
 
