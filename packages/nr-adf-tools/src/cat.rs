@@ -14,7 +14,7 @@ pub struct Args {
     /// Path to an Amiga disk file
     pub amiga_disk_filepath: path::PathBuf,
 
-    /// Path to a file into the Amiga disk file
+    /// Path to a file into the Amiga filesystem
     pub amiga_input_filepath: path::PathBuf,
 }
 
