@@ -9,3 +9,4 @@ anyhow = "1.0.91"
 chrono = "0.4.38"
 clap = { version = "4.5.20", features = ["derive"] }
 nr-adf-lib = { path = "../nr-adf-lib" }
+promptly = "0.3.1"
