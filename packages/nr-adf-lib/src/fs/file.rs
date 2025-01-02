@@ -209,4 +209,27 @@ impl AmigaDos {
             size,
         })
     }
+
+    /// Reads the entire contents of a file into a bytes vector.
+    pub fn read<P: AsRef<Path>>(
+        &self,
+        path: P,
+    ) -> Result<Vec<u8>, Error> {
+        let mut buf = [0; BLOCK_SIZE];
+
+        let mut output = Vec::new();
+        let mut input = self.open(&path, 0|FileMode::Read)?;
+
+        loop {
+            let count = input.read(&mut buf)?;
+
+            if count > 0 {
+                output.extend_from_slice(&buf[..count]);
+            } else {
+                break
+            }
+        }
+
+        Ok(output)
+    }
 }
