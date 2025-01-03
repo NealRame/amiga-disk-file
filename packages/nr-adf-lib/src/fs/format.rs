@@ -46,7 +46,7 @@ impl AmigaDosFormater {
         volume_name: &str,
     ) -> Result<AmigaDos, Error> {
         BootBlockWriter::default()
-            .width_filesystem_type(self.filesystem_type)
+            .with_filesystem_type(self.filesystem_type)
             .with_cache_mode(self.cache_mode)
             .with_international_mode(self.international_mode)
             .write(&mut disk)?;

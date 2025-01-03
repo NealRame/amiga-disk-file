@@ -138,7 +138,7 @@ impl Default for BootBlockWriter {
 }
 
 impl BootBlockWriter {
-    pub fn width_filesystem_type(
+    pub fn with_filesystem_type(
         &mut self,
         filesystem_type: FilesystemType,
     ) -> &mut Self {
