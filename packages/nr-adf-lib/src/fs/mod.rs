@@ -1,20 +1,18 @@
+mod amiga_dos;
 mod block;
 mod block_type;
+mod boot_block;
+mod checksum;
 mod constants;
 mod datetime;
-
-mod name;
-
-mod boot_block;
-mod root_block;
-
-mod amiga_dos;
 mod dir;
 mod file;
 mod format;
 mod info;
 mod lookup;
+mod name;
 mod options;
+mod root_block;
 
 pub use amiga_dos::*;
 pub use dir::*;
