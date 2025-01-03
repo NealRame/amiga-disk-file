@@ -137,15 +137,6 @@ impl RootBlock {
         } else {
             Err(Error::InvalidNameLengthError(len))
         }
-
-
-        // if let Ok(name) = str::from_utf8(&name[..name_size as usize]) {
-        //     self.volume_name = name.into();
-        // } else {
-        //     return Err(Error::CorruptedImageFile);
-        // }
-
-        // Ok(())
     }
 
     fn try_read_extension(
