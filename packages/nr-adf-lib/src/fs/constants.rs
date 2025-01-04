@@ -11,6 +11,10 @@ pub const BLOCK_HASH_TABLE_OFFSET           : usize = 0x18;
 pub const BLOCK_HASH_TABLE_SIZE             : usize = BLOCK_SIZE/4 - 56;
 pub const BLOCK_HASH_CHAIN_NEXT_OFFSET      : usize = BLOCK_SIZE - 0x10;
 
+pub const BLOCK_ALTERATION_DAYS_OFFSET      : usize = BLOCK_SIZE - 0x5c;
+pub const BLOCK_ALTERATION_MINS_OFFSET      : usize = BLOCK_SIZE - 0x58;
+pub const BLOCK_ALTERATION_TICKS_OFFSET     : usize = BLOCK_SIZE - 0x54;
+
 pub const BLOCK_NAME_SIZE_OFFSET            : usize = BLOCK_SIZE - 0x50;
 pub const BLOCK_NAME_OFFSET                 : usize = BLOCK_SIZE - 0x4f;
 pub const BLOCK_NAME_MAX_SIZE               : usize = 30;
@@ -54,19 +58,12 @@ pub const BOOT_BLOCK_BOOT_CODE_SLICE        : std::ops::Range<usize>
     = BOOT_BLOCK_BOOT_CODE_OFFSET..2*BLOCK_SIZE;
 
 // Root block /////////////////////////////////////////////////////////////////
-pub const ROOT_BLOCK_BITMAP_MAX_PAGES       : usize = 25;
-
-pub const ROOT_BLOCK_DISK_NAME_MAX_SIZE     : usize = 30;
-
 pub const ROOT_BLOCK_HASH_TABLE_SIZE_OFFSET : usize = 0x0c;
 
 pub const ROOT_BLOCK_BITMAP_FLAG_OFFSET     : usize = BLOCK_SIZE - 0xc8;
-pub const ROOT_BLOCK_BITMAP_PAGES_OFFSET    : usize = BLOCK_SIZE - 0xc4;
-pub const ROOT_BLOCK_BITMAP_EXT_OFFSET      : usize = BLOCK_SIZE - 0x60;
-
-pub const ROOT_BLOCK_R_DAYS_OFFSET          : usize = BLOCK_SIZE - 0x5c;
-pub const ROOT_BLOCK_R_MINS_OFFSET          : usize = BLOCK_SIZE - 0x58;
-pub const ROOT_BLOCK_R_TICKS_OFFSET         : usize = BLOCK_SIZE - 0x54;
+// pub const ROOT_BLOCK_BITMAP_PAGES_OFFSET    : usize = BLOCK_SIZE - 0xc4;
+// pub const ROOT_BLOCK_BITMAP_PAGES_EXT_OFFSET : usize = BLOCK_SIZE - 0x60;
+// pub const ROOT_BLOCK_BITMAP_PAGES_MAX_COUNT : usize = 25;
 
 pub const ROOT_BLOCK_V_DAYS_OFFSET          : usize = BLOCK_SIZE - 0x28;
 pub const ROOT_BLOCK_V_MINS_OFFSET          : usize = BLOCK_SIZE - 0x24;

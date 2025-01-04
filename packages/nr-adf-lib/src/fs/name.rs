@@ -7,13 +7,13 @@ use super::InternationalMode;
 
 
 // Check if a (dir, file or volume) name is valid
-pub fn check_name(name: String) -> Result<String, Error> {
+pub fn check_name(name: &str) -> Result<(), Error> {
     for c in name.bytes() {
         if c < ' ' as u8 || c == ':' as u8 || c == '/' as u8 {
             return Err(Error::InvalidNameError)
         }
     }
-    Ok(name)
+    Ok(())
 }
 
 // adapted from https://github.com/lclevy/ADFlib/blob/master/src/adf_dir.c#L918

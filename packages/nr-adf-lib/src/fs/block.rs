@@ -1,3 +1,5 @@
+use std::time::SystemTime;
+
 use paste::paste;
 
 use crate::disk::{
@@ -10,6 +12,7 @@ use crate::errors::Error;
 use super::block_type::*;
 use super::checksum::*;
 use super::constants::*;
+use super::datetime::*;
 use super::options::*;
 use super::name::*;
 
@@ -201,7 +204,10 @@ impl BlockReader<'_> {
         let len = self.read_u8(BLOCK_NAME_SIZE_OFFSET)? as usize;
 
         if len <= BLOCK_NAME_MAX_SIZE {
-            check_name(self.read_string(BLOCK_NAME_OFFSET, len)?)
+            let name = self.read_string(BLOCK_NAME_OFFSET, len)?;
+
+            check_name(&name)?;
+            Ok(name)
         } else {
             Err(Error::InvalidNameLengthError(len))
         }
@@ -216,6 +222,51 @@ impl BlockReader<'_> {
         let file_size = self.read_u32(BLOCK_FILE_SIZE)? as usize;
 
         Ok(file_size)
+    }
+
+    pub fn read_alteration_date(
+        &self,
+    ) -> Result<SystemTime, Error> {
+        self.check_block_primary_type(&[BlockPrimaryType::Header])?;
+        self.check_block_secondary_type(&[
+            BlockSecondaryType::Directory,
+            BlockSecondaryType::File,
+            BlockSecondaryType::HardLinkFile,
+            BlockSecondaryType::HardLinkDirectory,
+            BlockSecondaryType::Root,
+        ])?;
+
+        let days = self.read_u32(BLOCK_ALTERATION_DAYS_OFFSET)?;
+        let mins = self.read_u32(BLOCK_ALTERATION_MINS_OFFSET)?;
+        let ticks = self.read_u32(BLOCK_ALTERATION_TICKS_OFFSET)?;
+
+        Ok(date_triplet_to_system_time(days, mins, ticks))
+    }
+
+    pub fn read_disk_alteration_date(
+        &self,
+    ) -> Result<SystemTime, Error> {
+        self.check_block_primary_type(&[BlockPrimaryType::Header])?;
+        self.check_block_secondary_type(&[BlockSecondaryType::Root])?;
+
+        let days = self.read_u32(ROOT_BLOCK_V_DAYS_OFFSET)?;
+        let mins = self.read_u32(ROOT_BLOCK_V_MINS_OFFSET)?;
+        let ticks = self.read_u32(ROOT_BLOCK_V_TICKS_OFFSET)?;
+
+        Ok(date_triplet_to_system_time(days, mins, ticks))
+    }
+
+    pub fn read_root_creation_date(
+        &self,
+    ) -> Result<SystemTime, Error> {
+        self.check_block_primary_type(&[BlockPrimaryType::Header])?;
+        self.check_block_secondary_type(&[BlockSecondaryType::Root])?;
+
+        let days = self.read_u32(ROOT_BLOCK_C_DAYS_OFFSET)?;
+        let mins = self.read_u32(ROOT_BLOCK_C_MINS_OFFSET)?;
+        let ticks = self.read_u32(ROOT_BLOCK_C_TICKS_OFFSET)?;
+
+        Ok(date_triplet_to_system_time(days, mins, ticks))
     }
 
     pub fn read_block_primary_type(
@@ -262,15 +313,15 @@ impl BlockReader<'_> {
         Err(Error::UnexpectedFilesystemBlockSecondaryTypeError(block_type as u32))
     }
 
-    pub fn verify_checksum(&self, offset: usize) -> Result<(), Error> {
-        let expected_checksum = self.read_u32(offset)?;
+    // pub fn verify_checksum(&self, offset: usize) -> Result<(), Error> {
+    //     let expected_checksum = self.read_u32(offset)?;
 
-        if compute_checksum(self.data, offset) != expected_checksum {
-            Err(Error::CorruptedImageFile)
-        } else {
-            Ok(())
-        }
-    }
+    //     if compute_checksum(self.data, offset) != expected_checksum {
+    //         Err(Error::CorruptedImageFile)
+    //     } else {
+    //         Ok(())
+    //     }
+    // }
 }
 
 impl BlockReader<'_> {
@@ -363,16 +414,16 @@ macro_rules! generate_write_fns {
                 }
             }
 
-            pub fn [<write_ $t _array>](
-                &mut self,
-                offset: usize,
-                values: &[$t],
-            ) -> Result<(), Error> {
-                for i in 0..values.len() {
-                    self.[<write_ $t>](offset + i, values[i])?
-                }
-                Ok(())
-            }
+            // pub fn [<write_ $t _array>](
+            //     &mut self,
+            //     offset: usize,
+            //     values: &[$t],
+            // ) -> Result<(), Error> {
+            //     for i in 0..values.len() {
+            //         self.[<write_ $t>](offset + i, values[i])?
+            //     }
+            //     Ok(())
+            // }
         })*}
     };
 }
@@ -380,6 +431,10 @@ macro_rules! generate_write_fns {
 generate_write_fns!(u32);
 
 impl BlockWriter<'_> {
+    pub fn clear(&mut self) {
+        self.data.fill(0);
+    }
+
     pub fn write_u8(
         &mut self,
         offset: usize,
@@ -408,6 +463,57 @@ impl BlockWriter<'_> {
         }
     }
 
+    pub fn write_alteration_date(
+        &mut self,
+        datetime: &SystemTime,
+    ) -> Result<(), Error> {
+        let (
+            days,
+            mins,
+            ticks,
+        ) = date_triplet_from_system_time(datetime);
+
+        self.write_u32(BLOCK_ALTERATION_DAYS_OFFSET, days)?;
+        self.write_u32(BLOCK_ALTERATION_MINS_OFFSET, mins)?;
+        self.write_u32(BLOCK_ALTERATION_TICKS_OFFSET, ticks)?;
+
+        Ok(())
+    }
+
+    pub fn write_disk_alteration_date(
+        &mut self,
+        datetime: &SystemTime,
+    ) -> Result<(), Error> {
+        let (
+            days,
+            mins,
+            ticks,
+        ) = date_triplet_from_system_time(datetime);
+
+        self.write_u32(ROOT_BLOCK_V_DAYS_OFFSET, days)?;
+        self.write_u32(ROOT_BLOCK_V_MINS_OFFSET, mins)?;
+        self.write_u32(ROOT_BLOCK_V_TICKS_OFFSET, ticks)?;
+
+        Ok(())
+    }
+
+    pub fn write_root_creation_date(
+        &mut self,
+        datetime: &SystemTime,
+    ) -> Result<(), Error> {
+        let (
+            days,
+            mins,
+            ticks,
+        ) = date_triplet_from_system_time(datetime);
+
+        self.write_u32(ROOT_BLOCK_C_DAYS_OFFSET, days)?;
+        self.write_u32(ROOT_BLOCK_C_MINS_OFFSET, mins)?;
+        self.write_u32(ROOT_BLOCK_C_TICKS_OFFSET, ticks)?;
+
+        Ok(())
+    }
+
     pub fn write_block_primary_type(
         &mut self,
         block_primary_type: BlockPrimaryType,
@@ -424,20 +530,26 @@ impl BlockWriter<'_> {
         Ok(())
     }
 
+    pub fn write_name(
+        &mut self,
+        name: &str,
+    ) -> Result<(), Error> {
+        check_name(&name)?;
+
+        let bytes = name.as_bytes();
+        let len = bytes.len();
+
+        if len <= BLOCK_NAME_MAX_SIZE {
+            self.write_u8(BLOCK_NAME_SIZE_OFFSET, len as u8)?;
+            self.write_u8_array(BLOCK_NAME_OFFSET, &bytes)?;
+            Ok(())
+        } else {
+            Err(Error::InvalidNameLengthError(len))
+        }
+    }
+
     pub fn write_checksum(&mut self, offset: usize) -> Result<(), Error> {
         self.write_u32(offset, compute_checksum(self.data, offset))?;
         Ok(())
     }
-}
-
-/******************************************************************************
-* Traits **********************************************************************
-******************************************************************************/
-
-pub trait ReadFromDisk {
-    fn read(&mut self, disk: &Disk) -> Result<(), Error>;
-}
-
-pub trait WriteToDisk {
-    fn write(&self, disk: &mut Disk) -> Result<(), Error>;
 }

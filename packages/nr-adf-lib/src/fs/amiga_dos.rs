@@ -1,9 +1,7 @@
 use crate::disk::Disk;
 use crate::errors::Error;
 
-use super::block::*;
 use super::boot_block::*;
-use super::root_block::*;
 use super::FilesystemType;
 
 
@@ -20,13 +18,6 @@ impl From<Disk> for AmigaDos {
 impl AmigaDos {
     pub fn disk(&self) -> &Disk {
         &self.disk
-    }
-
-    pub fn get_root_block(&self) -> Result<RootBlock, Error> {
-        let mut root_block = RootBlock::default();
-
-        root_block.read(self.disk())?;
-        Ok(root_block)
     }
 
     pub fn get_boot_block(&self) -> Result<BootBlock, Error> {

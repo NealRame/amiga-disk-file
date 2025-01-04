@@ -2,7 +2,6 @@ use crate::disk::*;
 use crate::errors::*;
 
 use super::amiga_dos::*;
-use super::block::*;
 use super::boot_block::*;
 use super::root_block::*;
 use super::options::*;
@@ -51,7 +50,10 @@ impl AmigaDosFormater {
             .with_international_mode(self.international_mode)
             .write(&mut disk)?;
 
-        RootBlock::with_volume_name(volume_name).write(&mut disk)?;
+        RootBlockWriter::default()
+            .with_filesystem_type(self.filesystem_type)
+            .with_volume(volume_name)
+            .write(&mut disk)?;
 
         Ok(AmigaDos::from(disk))
     }
