@@ -1,4 +1,5 @@
 mod amiga_dos;
+mod bitmap;
 mod block;
 mod block_type;
 mod boot_block;

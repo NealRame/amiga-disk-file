@@ -119,17 +119,19 @@ impl BootBlock {
 }
 
 #[derive(Clone, Copy, Debug)]
-pub struct BootBlockWriter {
+pub struct BootBlockInitializer {
     boot_code: [u8; BOOT_BLOCK_BOOT_CODE_SIZE],
+    root_block_address: Option<LBAAddress>,
     filesystem_type: FilesystemType,
     international_mode: InternationalMode,
     cache_mode: CacheMode,
 }
 
-impl Default for BootBlockWriter {
+impl Default for BootBlockInitializer {
     fn default() -> Self {
         return Self {
             boot_code: [0u8; BOOT_BLOCK_BOOT_CODE_SIZE],
+            root_block_address: None,
             filesystem_type: FilesystemType::OFS,
             cache_mode: CacheMode::Off,
             international_mode: InternationalMode::Off,
@@ -137,7 +139,23 @@ impl Default for BootBlockWriter {
     }
 }
 
-impl BootBlockWriter {
+impl BootBlockInitializer {
+    // pub fn with_boot_code(
+    //     &mut self,
+    //     boot_code: &[u8; BOOT_BLOCK_BOOT_CODE_SIZE],
+    // ) -> &mut Self {
+    //     self.boot_code.copy_from_slice(boot_code);
+    //     self
+    // }
+
+    pub fn with_root_block_address(
+        &mut self,
+        addr: Option<LBAAddress>,
+    ) -> &mut Self {
+        self.root_block_address = addr;
+        self
+    }
+
     pub fn with_filesystem_type(
         &mut self,
         filesystem_type: FilesystemType,
@@ -162,18 +180,12 @@ impl BootBlockWriter {
         self
     }
 
-    // pub fn with_boot_code(
-    //     &mut self,
-    //     boot_code: &[u8; BOOT_BLOCK_BOOT_CODE_SIZE],
-    // ) -> &mut Self {
-    //     self.boot_code.copy_from_slice(boot_code);
-    //     self
-    // }
-
-    pub fn write(&self, disk: &mut Disk) -> Result<(), Error> {
+    pub fn init(&self, disk: &mut Disk) -> Result<(), Error> {
         let mut data = [0u8; 2*BLOCK_SIZE];
 
-        let root_block_address: u32 = (disk.disk_type() as u32)/2;
+        let root_block_address =
+            self.root_block_address.unwrap_or_else(|| disk.block_count()/2) as u32;
+
         let flags: u8 =
             self.cache_mode as u8
             | self.filesystem_type as u8

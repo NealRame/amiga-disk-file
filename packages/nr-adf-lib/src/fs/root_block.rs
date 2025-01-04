@@ -12,13 +12,13 @@ use super::options::*;
 
 
 #[derive(Clone, Debug)]
-pub struct RootBlockWriter {
+pub struct RootBlockInitializer {
     filesystem_type: FilesystemType,
     volume_name: String,
     root_block_address: Option<LBAAddress>,
 }
 
-impl Default for RootBlockWriter {
+impl Default for RootBlockInitializer {
     fn default() -> Self {
         Self {
             filesystem_type: FilesystemType::OFS,
@@ -28,7 +28,7 @@ impl Default for RootBlockWriter {
     }
 }
 
-impl RootBlockWriter {
+impl RootBlockInitializer {
     pub fn with_filesystem_type(
         &mut self,
         filesystem_type: FilesystemType,
@@ -37,7 +37,15 @@ impl RootBlockWriter {
         self
     }
 
-    pub fn with_volume(
+    pub fn with_root_block_address(
+        &mut self,
+        addr: Option<LBAAddress>,
+    ) -> &mut Self {
+        self.root_block_address = addr;
+        self
+    }
+
+    pub fn with_volume_name(
         &mut self,
         volume_name: &str,
     ) -> &mut Self {
@@ -45,7 +53,7 @@ impl RootBlockWriter {
         self
     }
 
-    pub fn write(
+    pub fn init(
         &self,
         disk: &mut Disk,
     ) -> Result<(), Error> {

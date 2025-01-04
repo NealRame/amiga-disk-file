@@ -12,6 +12,7 @@ pub struct AmigaDosFormater {
     filesystem_type: FilesystemType,
     cache_mode: CacheMode,
     international_mode: InternationalMode,
+    root_block_address: Option<LBAAddress>,
 }
 
 impl AmigaDosFormater {
@@ -26,7 +27,7 @@ impl AmigaDosFormater {
     pub fn with_international_mode(
         &mut self,
         international_mode: InternationalMode,
-    )-> &mut Self {
+    ) -> &mut Self {
         self.international_mode = international_mode;
         self
     }
@@ -39,21 +40,31 @@ impl AmigaDosFormater {
         self
     }
 
+    pub fn with_root_block_address(
+        &mut self,
+        addr: Option<LBAAddress>,
+    ) -> &mut Self {
+        self.root_block_address = addr;
+        self
+    }
+
     pub fn format(
         &self,
         mut disk: Disk,
         volume_name: &str,
     ) -> Result<AmigaDos, Error> {
-        BootBlockWriter::default()
+        BootBlockInitializer::default()
+            .with_root_block_address(self.root_block_address)
             .with_filesystem_type(self.filesystem_type)
             .with_cache_mode(self.cache_mode)
             .with_international_mode(self.international_mode)
-            .write(&mut disk)?;
+            .init(&mut disk)?;
 
-        RootBlockWriter::default()
+        RootBlockInitializer::default()
+            .with_root_block_address(self.root_block_address)
             .with_filesystem_type(self.filesystem_type)
-            .with_volume(volume_name)
-            .write(&mut disk)?;
+            .with_volume_name(volume_name)
+            .init(&mut disk)?;
 
         Ok(AmigaDos::from(disk))
     }
