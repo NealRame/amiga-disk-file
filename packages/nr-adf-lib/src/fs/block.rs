@@ -138,6 +138,26 @@ impl BlockReader<'_> {
         )
     }
 
+    pub fn read_bitmap(
+        &self,
+    ) -> Result<Vec<LBAAddress>, Error> {
+        self.check_block_primary_type(&[BlockPrimaryType::Header])?;
+        self.check_block_secondary_type(&[BlockSecondaryType::Root])?;
+
+        let v = self.read_u32_vector(
+            ROOT_BLOCK_BITMAP_PAGES_OFFSET,
+            ROOT_BLOCK_BITMAP_PAGES_MAX_COUNT,
+        )?;
+
+        Ok(v.iter().copied().filter_map(|addr| {
+            if addr != 0 {
+                Some(addr as LBAAddress)
+            } else {
+                None
+            }
+        }).collect())
+    }
+
     pub fn read_data_block_addr(
         &self,
         index: usize,

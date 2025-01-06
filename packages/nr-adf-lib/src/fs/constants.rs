@@ -61,9 +61,9 @@ pub const BOOT_BLOCK_BOOT_CODE_SLICE        : std::ops::Range<usize>
 pub const ROOT_BLOCK_HASH_TABLE_SIZE_OFFSET : usize = 0x0c;
 
 pub const ROOT_BLOCK_BITMAP_FLAG_OFFSET     : usize = BLOCK_SIZE - 0xc8;
-// pub const ROOT_BLOCK_BITMAP_PAGES_OFFSET    : usize = BLOCK_SIZE - 0xc4;
+pub const ROOT_BLOCK_BITMAP_PAGES_OFFSET    : usize = BLOCK_SIZE - 0xc4;
+pub const ROOT_BLOCK_BITMAP_PAGES_MAX_COUNT : usize = 25;
 // pub const ROOT_BLOCK_BITMAP_PAGES_EXT_OFFSET : usize = BLOCK_SIZE - 0x60;
-// pub const ROOT_BLOCK_BITMAP_PAGES_MAX_COUNT : usize = 25;
 
 pub const ROOT_BLOCK_V_DAYS_OFFSET          : usize = BLOCK_SIZE - 0x28;
 pub const ROOT_BLOCK_V_MINS_OFFSET          : usize = BLOCK_SIZE - 0x24;
@@ -74,3 +74,6 @@ pub const ROOT_BLOCK_C_MINS_OFFSET          : usize = BLOCK_SIZE - 0x18;
 pub const ROOT_BLOCK_C_TICKS_OFFSET         : usize = BLOCK_SIZE - 0x14;
 
 pub const ROOT_BLOCK_EXTENSION_OFFSET       : usize = BLOCK_SIZE - 0x08;
+
+// Bitmap block ///////////////////////////////////////////////////////////////
+pub const BITMAP_BLOCK_BIT_COUNT: usize = (BLOCK_SIZE - 4)*8;

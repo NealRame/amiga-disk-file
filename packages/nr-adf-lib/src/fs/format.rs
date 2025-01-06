@@ -2,6 +2,7 @@ use crate::disk::*;
 use crate::errors::*;
 
 use super::amiga_dos::*;
+use super::bitmap::BitmapInitializer;
 use super::boot_block::*;
 use super::root_block::*;
 use super::options::*;
@@ -64,6 +65,10 @@ impl AmigaDosFormater {
             .with_root_block_address(self.root_block_address)
             .with_filesystem_type(self.filesystem_type)
             .with_volume_name(volume_name)
+            .init(&mut disk)?;
+
+        BitmapInitializer::default()
+            .with_root_block_address(self.root_block_address)
             .init(&mut disk)?;
 
         Ok(AmigaDos::from(disk))
