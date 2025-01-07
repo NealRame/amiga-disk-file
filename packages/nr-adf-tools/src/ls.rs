@@ -21,7 +21,7 @@ pub struct Args {
 pub fn run(args: &Args) -> Result<()> {
     let disk_data = fs::read(&args.amiga_disk_filepath)?;
     let disk = Disk::try_create_with_data(disk_data)?;
-    let fs: AmigaDos = disk.into();
+    let fs: AmigaDos = disk.try_into()?;
 
     for entry in fs.read_dir(&args.amiga_input_filepath)? {
         if let Ok(entry) = entry {

@@ -69,7 +69,7 @@ pub fn run(args: &Args) -> Result<()> {
     let disk_data = fs::read(&args.amiga_disk_filepath)?;
     let disk = Disk::try_create_with_data(disk_data)?;
 
-    let fs: AmigaDos = disk.into();
+    let fs: AmigaDos = disk.try_into()?;
     let data = fs.read(&args.amiga_input_filepath)?;
 
     if let Some(mut output) = get_output_file(args)? {

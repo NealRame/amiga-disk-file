@@ -2,18 +2,23 @@ use crate::disk::Disk;
 use crate::errors::Error;
 
 use super::boot_block::*;
-use super::FilesystemType;
+use super::options::*;
 
 
 pub struct AmigaDos {
     pub disk: Disk,
 }
 
-impl From<Disk> for AmigaDos {
-    fn from(disk: Disk) -> Self {
-        AmigaDos { disk }
+impl TryFrom<Disk> for AmigaDos {
+    type Error = Error;
+
+    fn try_from(disk: Disk) -> Result<Self, Self::Error> {
+        Ok(Self {
+            disk
+        })
     }
 }
+
 
 impl AmigaDos {
     pub fn disk(&self) -> &Disk {

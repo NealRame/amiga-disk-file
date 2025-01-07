@@ -71,6 +71,6 @@ impl AmigaDosFormater {
             .with_root_block_address(self.root_block_address)
             .init(&mut disk)?;
 
-        Ok(AmigaDos::from(disk))
+        AmigaDos::try_from(disk)
     }
 }

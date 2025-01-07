@@ -28,7 +28,7 @@ pub fn run(args: &Args) -> Result<()> {
     let disk_data = fs::read(&args.amiga_disk_filepath)?;
     let disk = Disk::try_create_with_data(disk_data)?;
 
-    let fs: AmigaDos = disk.into();
+    let fs: AmigaDos = disk.try_into()?;
     let fs_info = fs.info()?;
 
     println!("           Volume name: {}", fs_info.volume_name);
