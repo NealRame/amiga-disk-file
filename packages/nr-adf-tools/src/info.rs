@@ -14,8 +14,8 @@ use nr_adf_lib::prelude::*;
  *****************************************************************************/
 #[derive(clap::Args)]
 pub struct Args {
-    /// Input file
-    pub input_file_path: path::PathBuf,
+    /// Path to an Amiga disk file
+    pub amiga_disk_filepath: path::PathBuf,
 }
 
 pub fn system_time_to_str(
@@ -25,7 +25,7 @@ pub fn system_time_to_str(
 }
 
 pub fn run(args: &Args) -> Result<()> {
-    let disk_data = fs::read(&args.input_file_path)?;
+    let disk_data = fs::read(&args.amiga_disk_filepath)?;
     let disk = Disk::try_create_with_data(disk_data)?;
 
     let fs: AmigaDos = disk.into();
