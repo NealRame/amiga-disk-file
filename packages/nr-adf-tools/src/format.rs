@@ -1,5 +1,8 @@
 use std::fs;
-use std::path;
+use std::path::{
+    Path,
+    PathBuf,
+};
 
 use anyhow::Result;
 
@@ -7,13 +10,13 @@ use nr_adf_lib::prelude::*;
 
 
 fn read_disk_file(
-    input_disk_file_path: &path::Path,
+    input_disk_file_path: &Path,
 ) -> Result<Disk> {
     Ok(Disk::try_create_with_data(fs::read(input_disk_file_path)?)?)
 }
 
 fn write_disk_file(
-    output_disk_file_path: &path::Path,
+    output_disk_file_path: &Path,
     disk: &Disk,
 ) -> Result<()> {
     Ok(fs::write(output_disk_file_path, disk.data())?)
@@ -25,7 +28,7 @@ fn write_disk_file(
 #[derive(clap::Args)]
 pub struct Args {
     /// Disk file
-    disk_file_path: path::PathBuf,
+    disk_file_path: PathBuf,
 
     /// Volune name
     volume_name: String,
