@@ -31,7 +31,7 @@ impl<'disk> BlockReader<'disk> {
         disk: &'disk Disk,
         addr: LBAAddress,
     ) -> Result<Self, Error> {
-        let data = disk.block(addr)?;
+        let data = disk.blocks(addr, 1)?;
 
         Ok(Self {
             disk,
@@ -408,7 +408,7 @@ impl<'disk> BlockWriter<'disk> {
         disk: &'disk mut Disk,
         addr: LBAAddress,
     ) -> Result<Self, Error> {
-        let data = disk.block_mut(addr)?;
+        let data = disk.blocks_mut(addr, 1)?;
         Ok(Self { data })
     }
 }

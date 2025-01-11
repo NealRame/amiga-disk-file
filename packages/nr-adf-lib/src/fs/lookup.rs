@@ -30,7 +30,7 @@ impl AmigaDos {
     ) -> Result<LBAAddress, Error> {
         if let Some(path) = path_split(path) {
             let disk = self.disk();
-            let boot_block = BootBlock::try_from_disk(disk)?;
+            let boot_block = BootBlockReader::try_from_disk(disk)?;
             let international_mode = boot_block.get_international_mode();
 
             let mut block_addr = boot_block.get_root_block_address();

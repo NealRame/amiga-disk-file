@@ -29,11 +29,13 @@ impl Disk {
         &self,
         addr: LBAAddress,
         count: usize,
-    ) -> Result<(usize, usize), Error> {
+    ) -> Result<std::ops::Range<usize>, Error> {
         if addr >= self.block_count() || addr + count > self.block_count() {
             Err(Error::DiskInvalidLBAAddressError(addr))
         } else {
-            Ok((addr*BLOCK_SIZE, (addr + count)*BLOCK_SIZE))
+            let begin = addr*BLOCK_SIZE;
+            let end = (addr + count)*BLOCK_SIZE;
+            Ok(begin..end)
         }
     }
 }
@@ -84,22 +86,38 @@ impl Disk {
         Err(Error::DiskInvalidSizeError(disk_size))
     }
 
-    pub fn block(
+    // pub fn block(
+    //     &self,
+    //     addr: LBAAddress,
+    // ) -> Result<&[u8], Error> {
+    //     let r = self.block_bounds(addr, 1)?;
+    //     Ok(&self.disk_data[r])
+    // }
+
+    pub fn blocks(
         &self,
         addr: LBAAddress,
+        count: usize,
     ) -> Result<&[u8], Error> {
-        let (begin, end) = self.block_bounds(addr, 1)?;
-
-        Ok(&self.disk_data[begin..end])
+        let r = self.block_bounds(addr, count)?;
+        Ok(&self.disk_data[r])
     }
 
-    pub fn block_mut(
+    // pub fn block_mut(
+    //     &mut self,
+    //     addr: LBAAddress,
+    // ) -> Result<&mut [u8], Error> {
+    //     let r = self.block_bounds(addr, 1)?;
+    //     Ok(&mut self.disk_data[r])
+    // }
+
+    pub fn blocks_mut(
         &mut self,
         addr: LBAAddress,
+        count: usize,
     ) -> Result<&mut [u8], Error> {
-        let (begin, end) = self.block_bounds(addr, 1)?;
-
-        Ok(&mut self.disk_data[begin..end])
+        let r = self.block_bounds(addr, count)?;
+        Ok(&mut self.disk_data[r])
     }
 
     pub fn data(&self) -> &[u8] {
@@ -110,23 +128,23 @@ impl Disk {
         self.disk_data.as_mut_slice()
     }
 
-    pub fn read<const N: usize>(
-        &self,
-        addr: LBAAddress,
-        data: &mut [u8; N],
-    ) -> Result<(), Error> {
-        let count = if N%BLOCK_SIZE == 0 {
-            N/BLOCK_SIZE
-        } else {
-            N/BLOCK_SIZE + 1
-        };
+    // pub fn read<const N: usize>(
+    //     &self,
+    //     addr: LBAAddress,
+    //     data: &mut [u8; N],
+    // ) -> Result<(), Error> {
+    //     let count = if N%BLOCK_SIZE == 0 {
+    //         N/BLOCK_SIZE
+    //     } else {
+    //         N/BLOCK_SIZE + 1
+    //     };
 
-        for i in 0..count {
-            data[i*BLOCK_SIZE..(i + 1)*BLOCK_SIZE].copy_from_slice(
-                self.block(addr + i)?
-            );
-        }
+    //     for i in 0..count {
+    //         data[i*BLOCK_SIZE..(i + 1)*BLOCK_SIZE].copy_from_slice(
+    //             self.block(addr + i)?
+    //         );
+    //     }
 
-        Ok(())
-    }
+    //     Ok(())
+    // }
 }

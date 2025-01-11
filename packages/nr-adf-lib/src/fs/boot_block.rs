@@ -31,33 +31,30 @@ fn compute_checksum(data: &[u8]) -> u32 {
 }
 
 #[derive(Clone, Copy, Debug)]
-pub struct BootBlock {
-    data: [u8; 2*BLOCK_SIZE],
+pub struct BootBlockReader<'disk> {
+    data: &'disk [u8],
 }
 
-impl Default for BootBlock {
-    fn default() -> Self {
-        Self {
-            data: [0; 2*BLOCK_SIZE],
+impl<'disk> BootBlockReader<'disk> {
+    pub fn try_from_disk(disk: &'disk Disk) -> Result<Self, Error> {
+        let data = disk.blocks(0, 2)?;
+
+        if &data[0..3] != &[0x44, 0x4f, 0x53] { // DOS
+            return Err(Error::CorruptedImageFile);
         }
+
+        let checksum = compute_checksum(&data);
+        let expected = u32::from_be_bytes(data[4..8].try_into().unwrap());
+
+        if checksum != expected {
+            return Err(Error::CorruptedImageFile);
+        }
+
+        Ok(Self { data })
     }
 }
 
-impl BootBlock {
-    pub fn try_from_disk(disk: &Disk) -> Result<Self, Error> {
-        let mut boot_block = BootBlock::default();
-
-        disk.read::<{2*BLOCK_SIZE}>(0, &mut boot_block.data)?;
-
-        if &boot_block.data[0..3] != &[0x44, 0x4f, 0x53] { // DOS
-            Err(Error::CorruptedImageFile)
-        } else {
-            Ok(boot_block)
-        }
-    }
-}
-
-impl BootBlock {
+impl BootBlockReader<'_> {
     pub fn get_filesystem_type(&self) -> FilesystemType {
         let flags = self.data[3];
 
@@ -102,19 +99,6 @@ impl BootBlock {
         u32::from_be_bytes(
             self.data[BOOT_BLOCK_CHECKSUM_SLICE].try_into().unwrap()
         )
-    }
-
-    pub fn verify_checksum(
-        &self,
-        expected: u32,
-    ) -> Result<(), Error> {
-        let checksum = compute_checksum(&self.data);
-
-        if checksum != expected {
-            Err(Error::CorruptedImageFile)
-        } else {
-            Ok(())
-        }
     }
 }
 
@@ -181,10 +165,10 @@ impl BootBlockInitializer {
     }
 
     pub fn init(&self, disk: &mut Disk) -> Result<(), Error> {
-        let mut data = [0u8; 2*BLOCK_SIZE];
-
         let root_block_address =
             self.root_block_address.unwrap_or_else(|| disk.block_count()/2) as u32;
+
+        let data = disk.blocks_mut(0, 2)?;
 
         let flags: u8 =
             self.cache_mode as u8
@@ -206,9 +190,6 @@ impl BootBlockInitializer {
         data[BOOT_BLOCK_CHECKSUM_SLICE].copy_from_slice(
             &checksum.to_be_bytes(),
         );
-
-        disk.block_mut(0)?.copy_from_slice(&data[..BLOCK_SIZE]);
-        disk.block_mut(1)?.copy_from_slice(&data[BLOCK_SIZE..]);
 
         Ok(())
     }

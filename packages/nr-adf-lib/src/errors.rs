@@ -7,27 +7,25 @@ pub enum Error {
     CorruptedImageFile,
 
     InvalidDataBlockIndexError(usize),
-
     InvalidHashError(usize),
-
     InvalidNameError,
     InvalidNameLengthError(usize),
-
     InvalidPathError,
-
     InvalidStringError,
-
     InvalidFileModeError,
-
     InvalidFilesystemTypeError,
     InvalidCacheModeError,
     InvalidInternationalModeError,
+
     InvalidFilesystemBlockPrimaryTypeError(u32),
     UnexpectedFilesystemBlockPrimaryTypeError(u32),
+
     InvalidFilesystemBlockSecondaryTypeError(u32),
     UnexpectedFilesystemBlockSecondaryTypeError(u32),
 
     NotFoundError,
+
+    NoSpaceLeft,
 
     DiskInvalidLBAAddressError(usize),
     DiskInvalidBlockOffsetError(usize),
