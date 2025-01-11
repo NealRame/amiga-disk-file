@@ -8,6 +8,7 @@ mod constants;
 mod datetime;
 mod dir;
 mod file;
+mod file_read;
 mod format;
 mod info;
 mod lookup;
