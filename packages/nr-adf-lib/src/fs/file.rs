@@ -24,7 +24,7 @@ pub enum FileMode {
     /// This mode means that the file should be write-able when opened.
     /// If the file already exists, any write calls on it will append data
     /// instead of overwriting previous contents.
-    Append   = 0x4,
+    Append   = 0x04,
 
     /// This mode means that the file should be write-able when opened.
     /// If the file already exists, it will be truncated to 0 length.
