@@ -4,6 +4,7 @@ use crate::errors::*;
 
 use super::amiga_dos::*;
 use super::block::*;
+use super::boot_block::*;
 use super::options::*;
 
 
@@ -20,9 +21,12 @@ pub struct AmigaDosInfo {
 
 impl AmigaDos {
     pub fn info(&self) -> Result<AmigaDosInfo, Error> {
-        let boot_block = self.get_boot_block()?;
+        let fs = self.inner.borrow();
+        let disk = fs.disk();
+
+        let boot_block = BootBlockReader::try_from_disk(disk)?;
         let root_block = BlockReader::try_from_disk(
-            self.disk(),
+            disk,
             boot_block.get_root_block_address(),
         )?;
 

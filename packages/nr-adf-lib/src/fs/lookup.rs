@@ -23,7 +23,7 @@ fn path_split<P: AsRef<Path>>(
         .map(|res| res.collect::<Vec<String>>())
 }
 
-impl AmigaDos {
+impl AmigaDosInner {
     pub(super) fn lookup<P: AsRef<Path>>(
         &self,
         path: P,

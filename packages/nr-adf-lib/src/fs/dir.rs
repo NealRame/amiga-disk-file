@@ -1,7 +1,9 @@
+use std::cell::RefCell;
 use std::path::{
     Path,
     PathBuf,
 };
+use std::rc::Rc;
 
 use crate::disk::*;
 use crate::errors::*;
@@ -79,20 +81,22 @@ impl DirEntry {
     }
 }
 
-pub struct ReadDir<'fs> {
-    fs: &'fs AmigaDos,
+pub struct ReadDir {
+    fs: Rc<RefCell<AmigaDosInner>>,
     entry_block_addr_list: Vec<LBAAddress>,
     path: PathBuf,
 }
 
-impl<'fs> ReadDir<'fs> {
+impl<'fs> ReadDir {
     fn create<P: AsRef<Path>>(
-        fs: &'fs AmigaDos,
+        fs: Rc<RefCell<AmigaDosInner>>,
         path: P,
     ) -> Result<Self, Error> {
-        let block_addr = fs.lookup(&path)?;
-        let br = BlockReader::try_from_disk(fs.disk(), block_addr)?;
-        let entry_block_addr_list = br.read_dir()?;
+        let block_addr = fs.borrow().lookup(&path)?;
+        let entry_block_addr_list = BlockReader::try_from_disk(
+            &fs.borrow().disk(),
+            block_addr
+        )?.read_dir()?;
 
         Ok(Self {
             fs,
@@ -102,11 +106,12 @@ impl<'fs> ReadDir<'fs> {
     }
 }
 
-impl Iterator for ReadDir<'_> {
+impl Iterator for ReadDir {
     type Item = Result<DirEntry, Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let disk = self.fs.disk();
+        let fs = self.fs.borrow();
+        let disk = fs.disk();
         let path = &self.path;
 
         self.entry_block_addr_list
@@ -120,6 +125,6 @@ impl AmigaDos {
         &self,
         path: P,
     ) -> Result<ReadDir, Error> {
-        ReadDir::create(self, &path)
+        ReadDir::create(self.inner.clone(), &path)
     }
 }

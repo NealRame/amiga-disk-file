@@ -91,15 +91,15 @@ impl BootBlockReader<'_> {
         ) as usize
     }
 
-    pub fn get_boot_code(&self) -> &[u8] {
-        &self.data[BOOT_BLOCK_BOOT_CODE_SLICE]
-    }
+    // pub fn get_boot_code(&self) -> &[u8] {
+    //     &self.data[BOOT_BLOCK_BOOT_CODE_SLICE]
+    // }
 
-    pub fn get_checksum(&self) -> u32 {
-        u32::from_be_bytes(
-            self.data[BOOT_BLOCK_CHECKSUM_SLICE].try_into().unwrap()
-        )
-    }
+    // pub fn get_checksum(&self) -> u32 {
+    //     u32::from_be_bytes(
+    //         self.data[BOOT_BLOCK_CHECKSUM_SLICE].try_into().unwrap()
+    //     )
+    // }
 }
 
 #[derive(Clone, Copy, Debug)]

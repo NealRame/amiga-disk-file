@@ -1,26 +1,10 @@
 use std::fs;
-use std::path::{
-    Path,
-    PathBuf,
-};
+use std::path::PathBuf;
 
 use anyhow::Result;
 
 use nr_adf_lib::prelude::*;
 
-
-fn read_disk_file(
-    input_disk_file_path: &Path,
-) -> Result<Disk> {
-    Ok(Disk::try_create_with_data(fs::read(input_disk_file_path)?)?)
-}
-
-fn write_disk_file(
-    output_disk_file_path: &Path,
-    disk: &Disk,
-) -> Result<()> {
-    Ok(fs::write(output_disk_file_path, disk.data())?)
-}
 
 /******************************************************************************
  * Format command run
@@ -47,14 +31,14 @@ pub struct Args {
 }
 
 pub fn run(args: &Args) -> Result<()> {
-    let disk = read_disk_file(&args.disk_file_path)?;
-    let fs =
-        AmigaDosFormater::default()
-            .with_cache_mode(args.cache_mode)
-            .with_international_mode(args.international_mode)
-            .with_filesystem_type(args.filesystem_type)
-            .format(disk, &args.volume_name)?;
+    let disk = Disk::try_create_with_data(fs::read(&args.disk_file_path)?)?;
 
-    write_disk_file(&args.disk_file_path, fs.disk())?;
+    AmigaDosFormater::default()
+        .with_cache_mode(args.cache_mode)
+        .with_international_mode(args.international_mode)
+        .with_filesystem_type(args.filesystem_type)
+        .format(disk, &args.volume_name)?
+        .dump(&args.disk_file_path)?;
+
     Ok(())
 }

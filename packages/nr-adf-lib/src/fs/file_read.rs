@@ -8,14 +8,17 @@ use super::block::*;
 use super::file::*;
 
 
-impl<> File<'_> {
+impl File {
     fn read_data(
         &mut self,
         buf: &mut [u8],
         block_data_pos: usize,
     ) -> Result<(), Error> {
+        let fs = self.fs.borrow();
+        let disk = fs.disk();
+
         let block_addr = self.get_data_block_addr()?;
-        let block = BlockReader::try_from_disk(self.disk, block_addr)?;
+        let block = BlockReader::try_from_disk(disk, block_addr)?;
 
         block.read_u8_array(self.block_data_offset + block_data_pos, buf)
     }

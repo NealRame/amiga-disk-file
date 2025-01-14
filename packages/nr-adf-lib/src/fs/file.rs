@@ -1,5 +1,7 @@
+use std::cell::RefCell;
 use std::ops;
 use std::path::Path;
+use std::rc::Rc;
 
 use crate::disk::*;
 use crate::errors::*;
@@ -77,8 +79,8 @@ impl ops::BitOr<FileMode> for usize {
     }
 }
 
-pub struct File<'disk> {
-    pub(super) disk: &'disk Disk,
+pub struct File {
+    pub(super) fs: Rc<RefCell<AmigaDosInner>>,
     pub(super) block_data_offset: usize,
     pub(super) block_data_size: usize,
     pub(super) block_data_list_max_size: usize,
@@ -88,8 +90,11 @@ pub struct File<'disk> {
     pub(super) size: usize,
 }
 
-impl<> File<'_> {
-    pub(super) fn get_data_block_addr(&self) -> Result<usize, Error> {
+impl File {
+    fn get_current_data_block_index(&self) -> Result<(LBAAddress, usize), Error> {
+        let fs = self.fs.borrow();
+        let disk = fs.disk();
+
         let mut addr = self.header_block_addr;
         let mut pos = self.pos;
 
@@ -97,19 +102,50 @@ impl<> File<'_> {
         // We'll try to optimize that later.
         while pos >= self.block_data_list_max_size {
             addr = BlockReader::try_from_disk(
-                self.disk,
+                disk,
                 addr,
             )?.read_data_extension_block_addr()?;
             pos -= self.block_data_list_max_size;
         }
 
-        // let block_index = pos/self.block_data_size;
-        let block_index = BLOCK_BLOCK_DATA_LIST_SIZE - 1 - pos/self.block_data_size;
+        let index = BLOCK_BLOCK_DATA_LIST_SIZE - 1 - pos/self.block_data_size;
+
+        Ok((addr, index))
+    }
+
+    pub(super) fn get_data_block_addr(&self) -> Result<usize, Error> {
+        let (addr, index) = self.get_current_data_block_index()?;
 
         BlockReader::try_from_disk(
-            self.disk,
+            self.fs.borrow().disk(),
             addr,
-        )?.read_data_block_addr(block_index)
+        )?.read_data_block_addr(index)
+    }
+
+    pub(super) fn get_new_data_block_addr(
+        &self,
+    ) -> Result<LBAAddress, Error> {
+        let (addr, index) = self.get_current_data_block_index()?;
+
+        let mut fs = self.fs.borrow_mut();
+        let new_block_addr = fs.reserve_block()?;
+
+        BlockWriter::try_from_disk(
+            fs.disk_mut(),
+            addr
+        )?.write_data_block_addr(index, new_block_addr).and(Ok(new_block_addr))
+    }
+}
+
+impl AmigaDosInner {
+    fn read_file_size(
+        &self,
+        file_header_block_addr: LBAAddress,
+    ) -> Result<usize, Error> {
+        BlockReader::try_from_disk(
+            self.disk(),
+            file_header_block_addr,
+        )?.read_file_size()
     }
 }
 
@@ -125,10 +161,9 @@ impl AmigaDos {
             return Err(Error::InvalidFileModeError);
         }
 
-        let disk = self.disk();
-        let filesystem_type = self.get_filesystem_type()?;
-        let header_block_addr = self.lookup(path)?;
-        let header_block = BlockReader::try_from_disk(disk, header_block_addr)?;
+        let fs = self.inner.clone();
+
+        let filesystem_type = fs.borrow().get_filesystem_type()?;
 
         let (
             block_data_offset,
@@ -143,10 +178,10 @@ impl AmigaDos {
                 BLOCK_DATA_OFS_SIZE,
             ),
         };
-
         let block_data_list_max_size = block_data_size*BLOCK_BLOCK_DATA_LIST_SIZE;
 
-        let size = header_block.read_file_size()?;
+        let header_block_addr = fs.borrow().lookup(path)?;
+        let size = fs.borrow().read_file_size(header_block_addr)?;
         let pos = if mode & FileMode::Append {
             size
         } else {
@@ -154,7 +189,7 @@ impl AmigaDos {
         };
 
         Ok(File {
-            disk,
+            fs,
             block_data_offset,
             block_data_size,
             block_data_list_max_size,

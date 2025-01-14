@@ -572,4 +572,17 @@ impl BlockWriter<'_> {
         self.write_u32(offset, compute_checksum(self.data, offset))?;
         Ok(())
     }
+
+    pub fn write_data_block_addr(
+        &mut self,
+        index: usize,
+        addr: LBAAddress,
+    ) -> Result<(), Error> {
+        if index < BLOCK_BLOCK_DATA_LIST_SIZE {
+            self.write_u32(BLOCK_BLOCK_DATA_LIST_OFFSET + 4*index, addr as u32)?;
+            Ok(())
+        } else {
+            Err(Error::InvalidDataBlockIndexError(index))
+        }
+    }
 }

@@ -186,7 +186,7 @@ impl BitmapInitializer {
 * AmigaDos ********************************************************************
 ******************************************************************************/
 
-impl AmigaDos {
+impl AmigaDosInner {
     pub fn reserve_block(
         &mut self,
     ) -> Result<LBAAddress, Error> {
