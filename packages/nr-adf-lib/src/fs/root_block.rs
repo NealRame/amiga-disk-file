@@ -1,5 +1,7 @@
 use core::str;
 
+use std::cell::RefCell;
+use std::rc::Rc;
 use std::time::SystemTime;
 
 use crate::disk::*;
@@ -55,33 +57,33 @@ impl RootBlockInitializer {
 
     pub fn init(
         &self,
-        disk: &mut Disk,
+        disk: Rc<RefCell<Disk>>,
     ) -> Result<(), Error> {
+
         let datetime = SystemTime::now();
+        let root_block_addr = self.root_block_address.unwrap_or_else(|| {
+            disk.borrow().block_count()/2
+        });
+        let mut block = Block::new(disk, root_block_addr);
 
-        let mut writer = BlockWriter::try_from_disk(
-            disk,
-            self.root_block_address.unwrap_or_else(|| disk.block_count()/2),
-        )?;
+        block.clear();
+        block.write_block_primary_type(BlockPrimaryType::Header)?;
+        block.write_block_secondary_type(BlockSecondaryType::Root)?;
 
-        writer.clear();
-        writer.write_block_primary_type(BlockPrimaryType::Header)?;
-        writer.write_block_secondary_type(BlockSecondaryType::Root)?;
+        block.write_alteration_date(&datetime)?;
+        block.write_disk_alteration_date(&datetime)?;
+        block.write_root_creation_date(&datetime)?;
 
-        writer.write_alteration_date(&datetime)?;
-        writer.write_disk_alteration_date(&datetime)?;
-        writer.write_root_creation_date(&datetime)?;
+        block.write_name(&self.volume_name)?;
 
-        writer.write_name(&self.volume_name)?;
-
-        writer.write_u32(
+        block.write_u32(
             ROOT_BLOCK_HASH_TABLE_SIZE_OFFSET,
             BLOCK_HASH_TABLE_SIZE as u32
         )?;
-        writer.write_u32(ROOT_BLOCK_BITMAP_FLAG_OFFSET, 0xffffffff)?;
-        writer.write_u32(ROOT_BLOCK_EXTENSION_OFFSET, 0)?;
+        block.write_u32(ROOT_BLOCK_BITMAP_FLAG_OFFSET, 0xffffffff)?;
+        block.write_u32(ROOT_BLOCK_EXTENSION_OFFSET, 0)?;
 
-        writer.write_checksum(BLOCK_CHECKSUM_OFFSET)?;
+        block.write_checksum(BLOCK_CHECKSUM_OFFSET)?;
 
         Ok(())
     }

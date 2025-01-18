@@ -1,3 +1,6 @@
+use std::cell::RefCell;
+use std::rc::Rc;
+
 use crate::disk::*;
 use crate::errors::*;
 
@@ -7,39 +10,33 @@ use super::options::*;
 
 fn compute_checksum(data: &[u8]) -> u32 {
     const CHECKSUM_CHUNK_SIZE: usize = size_of::<u32>();
+    const SKIP_OFFSET: usize = BOOT_BLOCK_CHECKSUM_OFFSET/CHECKSUM_CHUNK_SIZE;
 
-    let skip_offset = BOOT_BLOCK_CHECKSUM_OFFSET/CHECKSUM_CHUNK_SIZE;
     let mut checksum = 0u32;
 
     for (i, chunk) in data.chunks(4).enumerate() {
-        if chunk.len() == 4 {
-            let v = if i != skip_offset {
-                u32::from_be_bytes(chunk.try_into().unwrap())
-            } else {
-                0
-            };
+        if i != SKIP_OFFSET && chunk.len() == 4 {
+            let v = u32::from_be_bytes(chunk.try_into().unwrap());
 
-            if u32::MAX < v {
+            if u32::MAX - checksum < v {
                 (checksum, _) = checksum.overflowing_add(1);
             }
-
             (checksum, _) = checksum.overflowing_add(v);
         }
     }
-
     !checksum
 }
 
-#[derive(Clone, Copy, Debug)]
-pub struct BootBlockReader<'disk> {
-    data: &'disk [u8],
+#[derive(Clone)]
+pub struct BootBlockReader {
+    disk: Rc<RefCell<Disk>>,
 }
 
-impl<'disk> BootBlockReader<'disk> {
-    pub fn try_from_disk(disk: &'disk Disk) -> Result<Self, Error> {
+impl BootBlockReader {
+    fn check(disk: &Disk) -> Result<(), Error> {
         let data = disk.blocks(0, 2)?;
 
-        if &data[0..3] != &[0x44, 0x4f, 0x53] { // DOS
+        if &data[0..3] != BOOT_BLOCK_MAGIC_NUMBER {
             return Err(Error::CorruptedImageFile);
         }
 
@@ -50,13 +47,20 @@ impl<'disk> BootBlockReader<'disk> {
             return Err(Error::CorruptedImageFile);
         }
 
-        Ok(Self { data })
+        Ok(())
+    }
+
+    pub fn try_from_disk(disk: Rc<RefCell<Disk>>) -> Result<Self, Error> {
+        BootBlockReader::check(&disk.borrow())?;
+        Ok(Self {
+            disk,
+        })
     }
 }
 
-impl BootBlockReader<'_> {
+impl BootBlockReader {
     pub fn get_filesystem_type(&self) -> FilesystemType {
-        let flags = self.data[3];
+        let flags = self.disk.borrow().data()[3];
 
         if flags & (FilesystemType::FFS as u8) != 0 {
             FilesystemType::FFS
@@ -66,7 +70,7 @@ impl BootBlockReader<'_> {
     }
 
     pub fn get_international_mode(&self) -> InternationalMode {
-        let flags = self.data[3];
+        let flags = self.disk.borrow().data()[3];
 
         if flags & (InternationalMode::On as u8) != 0 {
             InternationalMode::On
@@ -76,7 +80,7 @@ impl BootBlockReader<'_> {
     }
 
     pub fn get_cache_mode(&self) -> CacheMode {
-        let flags = self.data[3];
+        let flags = self.disk.borrow().data()[3];
 
         if flags & (CacheMode::On as u8) != 0 {
             CacheMode::On
@@ -87,7 +91,7 @@ impl BootBlockReader<'_> {
 
     pub fn get_root_block_address(&self) -> LBAAddress {
         u32::from_be_bytes(
-            self.data[BOOT_BLOCK_ROOT_BLOCK_SLICE].try_into().unwrap()
+            self.disk.borrow().data()[BOOT_BLOCK_ROOT_BLOCK_SLICE].try_into().unwrap()
         ) as usize
     }
 
@@ -164,7 +168,11 @@ impl BootBlockInitializer {
         self
     }
 
-    pub fn init(&self, disk: &mut Disk) -> Result<(), Error> {
+    pub fn init(
+        &self,
+        disk: Rc<RefCell<Disk>>,
+    ) -> Result<(), Error> {
+        let mut disk = disk.borrow_mut();
         let root_block_address =
             self.root_block_address.unwrap_or_else(|| disk.block_count()/2) as u32;
 
@@ -175,9 +183,11 @@ impl BootBlockInitializer {
             | self.filesystem_type as u8
             | self.international_mode as u8;
 
-        data[BOOT_BLOCK_DISK_TYPE_SLICE].copy_from_slice(
-            &[0x44, 0x4f, 0x53, flags],
+        data[BOOT_BLOCK_FLAGS_OFFSET] = flags;
+        data[BOOT_BLOCK_MAGIC_NUMBER_SLICE].copy_from_slice(
+            BOOT_BLOCK_MAGIC_NUMBER
         );
+
         data[BOOT_BLOCK_ROOT_BLOCK_SLICE].copy_from_slice(
             &root_block_address.to_be_bytes(),
         );

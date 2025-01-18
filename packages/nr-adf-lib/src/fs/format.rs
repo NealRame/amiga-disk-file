@@ -1,8 +1,11 @@
+use std::cell::RefCell;
+use std::rc::Rc;
+
 use crate::disk::*;
 use crate::errors::*;
 
 use super::amiga_dos::*;
-use super::bitmap::BitmapInitializer;
+use super::bitmap::*;
 use super::boot_block::*;
 use super::root_block::*;
 use super::options::*;
@@ -51,7 +54,7 @@ impl AmigaDosFormater {
 
     pub fn format(
         &self,
-        mut disk: Disk,
+        disk: Rc<RefCell<Disk>>,
         volume_name: &str,
     ) -> Result<AmigaDos, Error> {
         BootBlockInitializer::default()
@@ -59,18 +62,18 @@ impl AmigaDosFormater {
             .with_filesystem_type(self.filesystem_type)
             .with_cache_mode(self.cache_mode)
             .with_international_mode(self.international_mode)
-            .init(&mut disk)?;
+            .init(disk.clone())?;
 
         RootBlockInitializer::default()
             .with_root_block_address(self.root_block_address)
             .with_filesystem_type(self.filesystem_type)
             .with_volume_name(volume_name)
-            .init(&mut disk)?;
+            .init(disk.clone())?;
 
         BitmapInitializer::default()
             .with_root_block_address(self.root_block_address)
-            .init(&mut disk)?;
+            .init(disk.clone())?;
 
-        AmigaDos::try_from(disk)
+        AmigaDos::try_from(disk.clone())
     }
 }

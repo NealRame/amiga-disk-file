@@ -9,8 +9,8 @@ mod datetime;
 mod dir;
 mod file;
 mod file_read;
-mod file_set_len;
-mod file_write;
+// mod file_set_len;
+// mod file_write;
 mod format;
 mod info;
 mod lookup;
@@ -19,6 +19,7 @@ mod options;
 mod root_block;
 
 pub use amiga_dos::*;
+pub use block::*;
 pub use dir::*;
 pub use file::*;
 pub use format::*;

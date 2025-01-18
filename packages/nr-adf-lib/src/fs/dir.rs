@@ -11,6 +11,7 @@ use crate::errors::*;
 use super::amiga_dos::*;
 use super::block::*;
 use super::block_type::*;
+use super::constants::*;
 
 
 #[derive(Clone, Copy, Debug)]
@@ -33,11 +34,11 @@ pub struct DirEntry {
 
 impl DirEntry {
     fn create(
-        disk: &Disk,
+        disk: Rc<RefCell<Disk>>,
         parent_path: &Path,
         addr: LBAAddress,
     ) -> Result<Self, Error> {
-        let br = BlockReader::try_from_disk(disk, addr)?;
+        let br = Block::new(disk, addr);
 
         br.check_block_primary_type(&[BlockPrimaryType::Header])?;
 
@@ -81,6 +82,29 @@ impl DirEntry {
     }
 }
 
+fn non_zero(addr: &u32) -> bool {
+    *addr != 0
+}
+
+fn read_dir(
+    disk: Rc<RefCell<Disk>>,
+    block_addr: LBAAddress,
+) -> Result<Vec<LBAAddress>, Error> {
+    let hash_table = Block::new(disk.clone(), block_addr).read_hash_table()?;
+
+    let mut entries = vec![];
+    for mut block_addr in hash_table.iter().copied().filter(non_zero) {
+        while block_addr != 0 {
+            entries.push(block_addr as LBAAddress);
+            block_addr = Block::new(
+                disk.clone(),
+                block_addr as LBAAddress,
+            ).read_u32(BLOCK_HASH_CHAIN_NEXT_OFFSET)?;
+        }
+    }
+    Ok(entries)
+}
+
 pub struct ReadDir {
     fs: Rc<RefCell<AmigaDosInner>>,
     entry_block_addr_list: Vec<LBAAddress>,
@@ -93,10 +117,10 @@ impl<'fs> ReadDir {
         path: P,
     ) -> Result<Self, Error> {
         let block_addr = fs.borrow().lookup(&path)?;
-        let entry_block_addr_list = BlockReader::try_from_disk(
-            &fs.borrow().disk(),
+        let entry_block_addr_list = read_dir(
+            fs.borrow().disk(),
             block_addr
-        )?.read_dir()?;
+        )?;
 
         Ok(Self {
             fs,

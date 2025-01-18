@@ -14,11 +14,10 @@ impl File {
         buf: &mut [u8],
         block_data_pos: usize,
     ) -> Result<(), Error> {
-        let fs = self.fs.borrow();
-        let disk = fs.disk();
+        let disk = self.fs.borrow().disk();
 
         let block_addr = self.get_data_block_addr()?;
-        let block = BlockReader::try_from_disk(disk, block_addr)?;
+        let block = Block::new(disk, block_addr);
 
         block.read_u8_array(self.block_data_offset + block_data_pos, buf)
     }

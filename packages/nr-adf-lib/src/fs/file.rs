@@ -91,9 +91,10 @@ pub struct File {
 }
 
 impl File {
-    fn get_current_data_block_index(&self) -> Result<(LBAAddress, usize), Error> {
-        let fs = self.fs.borrow();
-        let disk = fs.disk();
+    fn get_current_data_block_index(
+        &self,
+    ) -> Result<(LBAAddress, usize), Error> {
+        let disk = self.fs.borrow().disk();
 
         let mut addr = self.header_block_addr;
         let mut pos = self.pos;
@@ -101,10 +102,9 @@ impl File {
         // TODO: it feels like doing this every time is not very efficient.
         // We'll try to optimize that later.
         while pos >= self.block_data_list_max_size {
-            addr = BlockReader::try_from_disk(
-                disk,
-                addr,
-            )?.read_data_extension_block_addr()?;
+            let block = Block::new(disk.clone(), addr);
+
+            addr = block.read_data_extension_block_addr()?;
             pos -= self.block_data_list_max_size;
         }
 
@@ -116,25 +116,25 @@ impl File {
     pub(super) fn get_data_block_addr(&self) -> Result<usize, Error> {
         let (addr, index) = self.get_current_data_block_index()?;
 
-        BlockReader::try_from_disk(
-            self.fs.borrow().disk(),
+        Block::new(
+            self.fs.borrow().disk().clone(),
             addr,
-        )?.read_data_block_addr(index)
+        ).read_data_block_addr(index)
     }
 
-    pub(super) fn get_new_data_block_addr(
-        &self,
-    ) -> Result<LBAAddress, Error> {
-        let (addr, index) = self.get_current_data_block_index()?;
+    // pub(super) fn get_new_data_block_addr(
+    //     &self,
+    // ) -> Result<LBAAddress, Error> {
+    //     let (addr, index) = self.get_current_data_block_index()?;
 
-        let mut fs = self.fs.borrow_mut();
-        let new_block_addr = fs.reserve_block()?;
+    //     let mut fs = self.fs.borrow_mut();
+    //     let new_block_addr = fs.reserve_block()?;
 
-        BlockWriter::try_from_disk(
-            fs.disk_mut(),
-            addr
-        )?.write_data_block_addr(index, new_block_addr).and(Ok(new_block_addr))
-    }
+    //     BlockWriter::try_from_disk(
+    //         fs.disk_mut(),
+    //         addr
+    //     )?.write_data_block_addr(index, new_block_addr).and(Ok(new_block_addr))
+    // }
 }
 
 impl AmigaDosInner {
@@ -142,10 +142,10 @@ impl AmigaDosInner {
         &self,
         file_header_block_addr: LBAAddress,
     ) -> Result<usize, Error> {
-        BlockReader::try_from_disk(
+        Block::new(
             self.disk(),
             file_header_block_addr,
-        )?.read_file_size()
+        ).read_file_size()
     }
 }
 

@@ -1,5 +1,7 @@
+use std::cell::RefCell;
 use std::fs;
 use std::path::PathBuf;
+use std::rc::Rc;
 
 use anyhow::Result;
 
@@ -37,7 +39,10 @@ pub fn run(args: &Args) -> Result<()> {
         .with_cache_mode(args.cache_mode)
         .with_international_mode(args.international_mode)
         .with_filesystem_type(args.filesystem_type)
-        .format(disk, &args.volume_name)?
+        .format(
+            Rc::new(RefCell::new(disk)),
+            &args.volume_name,
+        )?
         .dump(&args.disk_file_path)?;
 
     Ok(())

@@ -24,11 +24,13 @@ impl AmigaDos {
         let fs = self.inner.borrow();
         let disk = fs.disk();
 
-        let boot_block = BootBlockReader::try_from_disk(disk)?;
-        let root_block = BlockReader::try_from_disk(
-            disk,
-            boot_block.get_root_block_address(),
-        )?;
+        let boot_block = BootBlockReader::try_from_disk(disk.clone())?;
+        let root_block_address = boot_block.get_root_block_address();
+
+        let root_block = Block::new(
+            disk.clone(),
+            root_block_address,
+        );
 
         let root_alteration_date = root_block.read_alteration_date()?;
         let root_creation_date = root_block.read_root_creation_date()?;

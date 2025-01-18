@@ -38,6 +38,12 @@ pub const BLOCK_DATA_OFS_OFFSET             : usize = 0x18;
 pub const BLOCK_DATA_OFS_SIZE               : usize = BLOCK_SIZE - 0x18;
 
 // Boot block /////////////////////////////////////////////////////////////////
+pub const BOOT_BLOCK_MAGIC_NUMBER           : &[u8; 3] = b"DOS";
+pub const BOOT_BLOCK_MAGIC_NUMBER_SLICE     : std::ops::Range<usize>
+    = 0..BOOT_BLOCK_FLAGS_OFFSET;
+
+pub const BOOT_BLOCK_FLAGS_OFFSET           : usize = 0x03;
+
 pub const BOOT_BLOCK_CHECKSUM_OFFSET        : usize = 0x04;
 
 pub const BOOT_BLOCK_ROOT_BLOCK_OFFSET      : usize = 0x08;
@@ -45,8 +51,8 @@ pub const BOOT_BLOCK_ROOT_BLOCK_OFFSET      : usize = 0x08;
 pub const BOOT_BLOCK_BOOT_CODE_OFFSET       : usize = 0x0c;
 pub const BOOT_BLOCK_BOOT_CODE_SIZE         : usize = 2*BLOCK_SIZE - 12;
 
-pub const BOOT_BLOCK_DISK_TYPE_SLICE        : std::ops::Range<usize>
-    = 0..BOOT_BLOCK_CHECKSUM_OFFSET;
+// pub const BOOT_BLOCK_DISK_TYPE_SLICE        : std::ops::Range<usize>
+//     = 0..BOOT_BLOCK_CHECKSUM_OFFSET;
 
 pub const BOOT_BLOCK_CHECKSUM_SLICE         : std::ops::Range<usize>
     = BOOT_BLOCK_CHECKSUM_OFFSET..BOOT_BLOCK_ROOT_BLOCK_OFFSET;
