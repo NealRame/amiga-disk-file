@@ -43,14 +43,14 @@ impl DirEntry {
         br.check_block_primary_type(&[BlockPrimaryType::Header])?;
 
         let file_type = match br.read_block_secondary_type()? {
-            BlockSecondaryType::File |
-            BlockSecondaryType::HardLinkFile => {
-                FileType::File
-            },
             BlockSecondaryType::Root |
             BlockSecondaryType::Directory |
             BlockSecondaryType::HardLinkDirectory => {
                 FileType::Dir
+            },
+            BlockSecondaryType::File |
+            BlockSecondaryType::HardLinkFile => {
+                FileType::File
             },
             BlockSecondaryType::SoftLink => {
                 FileType::Link
