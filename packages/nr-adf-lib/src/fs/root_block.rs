@@ -66,7 +66,7 @@ impl RootBlockInitializer {
         });
         let mut block = Block::new(disk, root_block_addr);
 
-        block.clear();
+        block.clear()?;
         block.write_block_primary_type(BlockPrimaryType::Header)?;
         block.write_block_secondary_type(BlockSecondaryType::Root)?;
 

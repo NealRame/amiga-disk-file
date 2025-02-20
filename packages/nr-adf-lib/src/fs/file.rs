@@ -8,6 +8,7 @@ use crate::errors::*;
 
 use super::amiga_dos::*;
 use super::block::*;
+use super::block_type::*;
 use super::constants::*;
 use super::options::*;
 
@@ -79,11 +80,46 @@ impl ops::BitOr<FileMode> for usize {
     }
 }
 
+#[derive(Clone, Copy, Default)]
+pub(super) struct FileDataBlockListEntry {
+    // Address of the data block
+    pub(super) data_block_address: usize,
+    // Index of the data block address in the extension block
+    pub(super) extension_block_index: usize,
+    // Address of the extension block
+    pub(super) extension_block_addr: LBAAddress,
+}
+
+impl FileDataBlockListEntry {
+    pub(super) fn try_create(
+        disk: Rc<RefCell<Disk>>,
+        extension_block_addr: usize,
+        extension_block_index: usize,
+    ) -> Result<Option<Self>, Error> {
+        let data_block_address = Block::new(
+            disk,
+            extension_block_addr,
+        ).read_data_block_addr(
+            BLOCK_DATA_LIST_SIZE - extension_block_index - 1
+        )?;
+
+        if data_block_address > 0 {
+            Ok(Some(Self {
+                data_block_address,
+                extension_block_addr,
+                extension_block_index,
+            }))
+        } else {
+            Ok(None)
+        }
+    }
+}
+
 pub struct File {
     pub(super) fs: Rc<RefCell<AmigaDosInner>>,
+    pub(super) block_data_list: Vec<FileDataBlockListEntry>,
     pub(super) block_data_offset: usize,
     pub(super) block_data_size: usize,
-    pub(super) block_data_list_max_size: usize,
     pub(super) header_block_addr: LBAAddress,
     pub(super) mode: usize,
     pub(super) pos: usize,
@@ -91,60 +127,215 @@ pub struct File {
 }
 
 impl File {
-    fn get_current_data_block_index(
-        &self,
-    ) -> Result<(LBAAddress, usize), Error> {
-        let disk = self.fs.borrow().disk();
+    fn release_extension_block(
+        &mut self,
+        entry: &FileDataBlockListEntry,
+    ) -> Result<(), Error> {
+        if let Some(last_entry) = self.block_data_list.last() {
+            self.fs.borrow_mut().free_block(entry.extension_block_addr)?;
 
-        let mut addr = self.header_block_addr;
-        let mut pos = self.pos;
+            let mut ext_block = Block::new(
+                self.fs.borrow().disk(),
+                last_entry.extension_block_addr,
+            );
 
-        // TODO: it feels like doing this every time is not very efficient.
-        // We'll try to optimize that later.
-        while pos >= self.block_data_list_max_size {
-            let block = Block::new(disk.clone(), addr);
+            ext_block.write_data_extension_block_addr(0)?;
+            ext_block.write_checksum(BLOCK_CHECKSUM_OFFSET)?;
+        }
+        Ok(())
+    }
 
-            addr = block.read_data_extension_block_addr()?;
-            pos -= self.block_data_list_max_size;
+    fn release_data_block(
+        &mut self,
+        entry: &FileDataBlockListEntry,
+    ) -> Result<(), Error> {
+        let mut ext_block = Block::new(
+            self.fs.borrow().disk(),
+            entry.extension_block_addr,
+        );
+
+        ext_block.write_data_block_addr(entry.extension_block_index, 0)?;
+        ext_block.write_u32(
+            BLOCK_DATA_LIST_HIGH_SEQ_OFFSET,
+            entry.extension_block_index as u32,
+        )?;
+
+        self.fs.borrow_mut().free_block(entry.data_block_address)?;
+
+        if entry.extension_block_index == 0 {
+            self.release_extension_block(entry)?;
+        } else {
+            ext_block.write_checksum(BLOCK_CHECKSUM_OFFSET)?;
         }
 
-        let index = BLOCK_BLOCK_DATA_LIST_SIZE - 1 - pos/self.block_data_size;
+        self.size -= self.size%self.block_data_size;
+        self.pos = self.pos.min(self.size);
 
-        Ok((addr, index))
+        Ok(())
     }
 
-    pub(super) fn get_data_block_addr(&self) -> Result<usize, Error> {
-        let (addr, index) = self.get_current_data_block_index()?;
+    fn alloc_extension_block(
+        &mut self,
+        entry: &FileDataBlockListEntry,
+    ) -> Result<LBAAddress, Error> {
+        let disk = self.fs.borrow().disk();
+        let extension_block_addr = self.fs.borrow_mut().reserve_block()?;
 
-        Block::new(
-            self.fs.borrow().disk().clone(),
-            addr,
-        ).read_data_block_addr(index)
+        // Update the last file extension block with the address of the newly
+        // allocated file extension block address.
+        let mut last_ext_block = Block::new(disk.clone(), entry.data_block_address);
+
+        last_ext_block.write_data_extension_block_addr(extension_block_addr)?;
+        last_ext_block.write_checksum(BLOCK_CHECKSUM_OFFSET)?;
+
+        // Initialize the newly allocated file extension block.
+        let mut next_ext_block = Block::new(disk.clone(), extension_block_addr);
+
+        next_ext_block.clear()?;
+        next_ext_block.write_block_primary_type(BlockPrimaryType::List)?;
+        next_ext_block.write_block_secondary_type(BlockSecondaryType::File)?;
+        next_ext_block.write_u32(
+            BLOCK_DATA_LIST_HEADER_KEY_OFFSET,
+            extension_block_addr as u32,
+        )?;
+        next_ext_block.write_u32(
+            BLOCK_DATA_LIST_PARENT_OFSET,
+            self.header_block_addr as u32,
+        )?;
+
+        Ok(extension_block_addr)
     }
 
-    // pub(super) fn get_new_data_block_addr(
-    //     &self,
-    // ) -> Result<LBAAddress, Error> {
-    //     let (addr, index) = self.get_current_data_block_index()?;
+    fn alloc_data_block(
+        &mut self,
+        entry: &FileDataBlockListEntry,
+    ) -> Result<FileDataBlockListEntry, Error> {
+        let data_block_address = self.fs.borrow_mut().reserve_block()?;
+        let (
+            extension_block_addr,
+            extension_block_index,
+        ) = if entry.extension_block_index < BLOCK_DATA_LIST_SIZE {
+            (entry.extension_block_addr, entry.extension_block_index + 1)
+        } else {
+            (self.alloc_extension_block(entry)?, 0)
+        };
 
-    //     let mut fs = self.fs.borrow_mut();
-    //     let new_block_addr = fs.reserve_block()?;
+        let mut ext_block = Block::new(
+            self.fs.borrow().disk(),
+            extension_block_addr,
+        );
 
-    //     BlockWriter::try_from_disk(
-    //         fs.disk_mut(),
-    //         addr
-    //     )?.write_data_block_addr(index, new_block_addr).and(Ok(new_block_addr))
-    // }
+        ext_block.write_data_block_addr(extension_block_index, data_block_address)?;
+        ext_block.write_u32(
+            BLOCK_DATA_LIST_PARENT_OFSET,
+            (extension_block_index + 1) as u32,
+        )?;
+
+        let entry = FileDataBlockListEntry {
+            data_block_address,
+            extension_block_addr,
+            extension_block_index,
+        };
+
+        self.block_data_list.push(entry);
+
+        Ok(entry)
+    }
+
+    fn alloc_first_data_block(
+        &mut self,
+    ) -> Result<FileDataBlockListEntry, Error> {
+        let data_block_address = self.fs.borrow_mut().reserve_block()?;
+        let extension_block_addr = self.header_block_addr;
+        let extension_block_index = 0;
+
+        let mut ext_block = Block::new(
+            self.fs.borrow().disk(),
+            self.header_block_addr,
+        );
+
+        ext_block.write_data_block_addr(0, data_block_address)?;
+        ext_block.write_u32(BLOCK_DATA_LIST_PARENT_OFSET, 1u32)?;
+
+        let entry = FileDataBlockListEntry {
+            data_block_address,
+            extension_block_addr,
+            extension_block_index,
+        };
+
+        self.block_data_list.push(entry);
+
+        Ok(entry)
+    }
+
+    pub(super) fn pop_data_block_list_entry(
+        &mut self,
+    ) -> Result<(), Error> {
+        if let Some(entry) = self.block_data_list.pop() {
+            self.release_data_block(&entry)?
+        }
+        Ok(())
+    }
+
+    pub(super) fn push_data_block_list_entry(
+        &mut self,
+    ) -> Result<FileDataBlockListEntry, Error> {
+        match self.block_data_list.last().copied() {
+            Some(entry) => {
+                self.alloc_data_block(&entry)
+            },
+            None => {
+                self.alloc_first_data_block()
+            },
+        }
+    }
+
+    pub(super) fn get_data_block_list_entry(
+        &self,
+        pos: usize,
+    ) -> Option<FileDataBlockListEntry> {
+        self.block_data_list.get(pos/self.block_data_size).copied()
+    }
+}
+
+impl AmigaDosInner {
+    fn try_get_block_data_list(
+        &self,
+        header_block_addr: LBAAddress,
+    ) -> Result<Vec<FileDataBlockListEntry>, Error> {
+        let mut entries = Vec::new();
+        let mut extension_block_address = header_block_addr;
+
+        while extension_block_address != 0 {
+            for extension_block_index in 0..BLOCK_DATA_LIST_SIZE {
+                match FileDataBlockListEntry::try_create(
+                    self.disk(),
+                    extension_block_address,
+                    extension_block_index,
+                )? {
+                    Some(entry) => entries.push(entry),
+                    None => break,
+                };
+            }
+
+            extension_block_address = Block::new(
+                self.disk(),
+                extension_block_address,
+            ).read_data_extension_block_addr()?;
+        }
+
+        Ok(entries)
+    }
 }
 
 impl AmigaDosInner {
     fn read_file_size(
         &self,
-        file_header_block_addr: LBAAddress,
+        header_block_addr: LBAAddress,
     ) -> Result<usize, Error> {
         Block::new(
             self.disk(),
-            file_header_block_addr,
+            header_block_addr,
         ).read_file_size()
     }
 }
@@ -162,9 +353,7 @@ impl AmigaDos {
         }
 
         let fs = self.inner.clone();
-
         let filesystem_type = fs.borrow().get_filesystem_type()?;
-
         let (
             block_data_offset,
             block_data_size,
@@ -178,7 +367,6 @@ impl AmigaDos {
                 BLOCK_DATA_OFS_SIZE,
             ),
         };
-        let block_data_list_max_size = block_data_size*BLOCK_BLOCK_DATA_LIST_SIZE;
 
         let header_block_addr = fs.borrow().lookup(path)?;
         let size = fs.borrow().read_file_size(header_block_addr)?;
@@ -188,11 +376,13 @@ impl AmigaDos {
             0
         };
 
+        let block_data_list = fs.borrow().try_get_block_data_list(header_block_addr)?;
+
         Ok(File {
             fs,
+            block_data_list,
             block_data_offset,
             block_data_size,
-            block_data_list_max_size,
             header_block_addr,
             mode,
             pos,

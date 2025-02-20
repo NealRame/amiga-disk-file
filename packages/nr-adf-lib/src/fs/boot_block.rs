@@ -43,7 +43,8 @@ impl BootBlockReader {
         let checksum = compute_checksum(&data);
         let expected = u32::from_be_bytes(data[4..8].try_into().unwrap());
 
-        if checksum != expected {
+        if expected != 0
+        && checksum != expected {
             return Err(Error::CorruptedImageFile);
         }
 

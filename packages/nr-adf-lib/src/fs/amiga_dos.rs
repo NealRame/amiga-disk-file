@@ -13,7 +13,7 @@ use super::options::*;
 pub(super) struct AmigaDosInner {
     disk: Rc<RefCell<Disk>>,
     bitmap_block_addresses: Box<[LBAAddress]>,
-    root_block_address: LBAAddress,
+    // root_block_address: LBAAddress,
 }
 
 impl AmigaDosInner {
@@ -29,9 +29,9 @@ impl AmigaDosInner {
         Ok(self.get_boot_block()?.get_filesystem_type())
     }
 
-    pub(super) fn get_root_block_address(&self) -> LBAAddress {
-        self.root_block_address
-    }
+    // pub(super) fn get_root_block_address(&self) -> LBAAddress {
+    //     self.root_block_address
+    // }
 
     pub(super) fn get_bitmap_block_addresses(&self) -> Vec<LBAAddress> {
         let mut addresses = Vec::new();
@@ -70,7 +70,7 @@ impl TryFrom<Rc<RefCell<Disk>>> for AmigaDos {
             inner: Rc::new(RefCell::new(AmigaDosInner {
                 disk,
                 bitmap_block_addresses,
-                root_block_address,
+                // root_block_address,
             }))
         })
     }

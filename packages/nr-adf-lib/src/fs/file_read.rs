@@ -12,14 +12,18 @@ impl File {
     fn read_data(
         &mut self,
         buf: &mut [u8],
-        block_data_pos: usize,
+        data_list_entry: &FileDataBlockListEntry,
+        data_pos: usize,
     ) -> Result<(), Error> {
-        let disk = self.fs.borrow().disk();
+        let data_block = Block::new(
+            self.fs.borrow().disk(),
+            data_list_entry.data_block_address,
+        );
 
-        let block_addr = self.get_data_block_addr()?;
-        let block = Block::new(disk, block_addr);
+        data_block.read_u8_array(self.block_data_offset + data_pos, buf)?;
+        self.pos += buf.len();
 
-        block.read_u8_array(self.block_data_offset + block_data_pos, buf)
+        Ok(())
     }
 
     pub fn read(
@@ -38,19 +42,19 @@ impl File {
         let mut count = 0;
 
         while count < total && self.pos < self.size {
-            let read_data_pos = self.pos%self.block_data_size;
-            let read_data_len =
+            let data_pos = self.pos%self.block_data_size;
+            let data_len =
                 buf.len()
                     .min(self.size - self.pos)
-                    .min(self.block_data_size - read_data_pos);
+                    .min(self.block_data_size - data_pos);
 
-            self.read_data(&mut buf[..read_data_len], read_data_pos)?;
-            self.pos += read_data_len;
+            if let Some(entry) = self.get_data_block_list_entry(self.pos) {
+                self.read_data(&mut buf[..data_len], &entry, data_pos)?;
 
-            count += read_data_len;
-            buf = &mut buf[read_data_len..];
+                buf = &mut buf[data_len..];
+                count += data_len;
+            }
         }
-
         Ok(count)
     }
 }

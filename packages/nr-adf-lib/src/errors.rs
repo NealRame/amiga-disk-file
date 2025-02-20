@@ -17,6 +17,8 @@ pub enum Error {
     InvalidCacheModeError,
     InvalidInternationalModeError,
 
+    FileEOF,
+
     InvalidFilesystemBlockPrimaryTypeError(u32),
     UnexpectedFilesystemBlockPrimaryTypeError(u32),
 

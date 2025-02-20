@@ -40,7 +40,7 @@ fn init_bitmap_block(
 
     // init the bitmap_block
     let mut bitmap_block = Block::new(disk.clone(), bitmap_block_address);
-    bitmap_block.fill(0xff)?;
+    bitmap_block.fill(0xff, 0, BLOCK_SIZE)?;
 
     Ok(())
 }
@@ -134,10 +134,11 @@ fn find_free_block_address_in_bitmap_block(
 }
 
 fn find_free_block_address(
-    disk: &Disk,
+    disk: Rc<RefCell<Disk>>,
     bitmap_block_addresses: &[LBAAddress],
 ) -> Result<Option<LBAAddress>, Error> {
     let mut block_address_offset = 2;
+    let disk = disk.borrow(); // we need a ref
 
     for addr in bitmap_block_addresses {
         let block_bitmap = disk.blocks(*addr, 1)?;
@@ -197,39 +198,33 @@ impl AmigaDosInner {
     pub fn reserve_block(
         &mut self,
     ) -> Result<LBAAddress, Error> {
-        // let bitmap_block_addresses = self.get_bitmap_block_addresses();
-        // let disk = self.disk_mut();
+        let bitmap_block_addresses = self.get_bitmap_block_addresses();
 
-        // match find_free_block_address(disk, &bitmap_block_addresses)? {
-        //     Some(address) => {
-        //         update_bitmap_blocks(
-        //             disk,
-        //             &bitmap_block_addresses,
-        //             BitmapAction::Alloc,
-        //             address,
-        //         )?;
-        //         Ok(address)
-        //     },
-        //     _ => Err(Error::NoSpaceLeft),
-        // }
-        unimplemented!()
+        match find_free_block_address(self.disk().clone(), &bitmap_block_addresses)? {
+            Some(address) => {
+                update_bitmap_blocks(
+                    self.disk().clone(),
+                    &bitmap_block_addresses,
+                    BitmapAction::Alloc,
+                    address,
+                )?;
+                Ok(address)
+            },
+            _ => Err(Error::NoSpaceLeft),
+        }
     }
 
     pub fn free_block(
         &mut self,
-        _: LBAAddress,
+        address: LBAAddress,
     ) -> Result<(), Error> {
-        // let bitmap_block_addresses = self.get_bitmap_block_addresses();
-        // let disk = self.disk_mut();
+        let bitmap_block_addresses = self.get_bitmap_block_addresses();
 
-        // update_bitmap_blocks(
-        //     disk,
-        //     &bitmap_block_addresses,
-        //     BitmapAction::Free,
-        //     address,
-        // )?;
-
-        // Ok(())
-        unimplemented!()
+        update_bitmap_blocks(
+            self.disk().clone(),
+            &bitmap_block_addresses,
+            BitmapAction::Free,
+            address,
+        )
     }
 }

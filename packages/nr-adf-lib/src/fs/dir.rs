@@ -111,7 +111,7 @@ pub struct ReadDir {
     path: PathBuf,
 }
 
-impl<'fs> ReadDir {
+impl ReadDir {
     fn create<P: AsRef<Path>>(
         fs: Rc<RefCell<AmigaDosInner>>,
         path: P,
