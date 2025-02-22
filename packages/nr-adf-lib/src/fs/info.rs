@@ -1,9 +1,9 @@
 use std::time::SystemTime;
 
+use crate::block::*;
 use crate::errors::*;
 
 use super::amiga_dos::*;
-use super::block::*;
 use super::boot_block::*;
 use super::options::*;
 

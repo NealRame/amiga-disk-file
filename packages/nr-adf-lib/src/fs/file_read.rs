@@ -1,10 +1,10 @@
 use std::path::Path;
 
+use crate::block::*;
 use crate::disk::*;
 use crate::errors::*;
 
 use super::amiga_dos::*;
-use super::block::*;
 use super::file::*;
 
 

@@ -2,10 +2,10 @@ use std::path::Path;
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use crate::block::*;
 use crate::disk::*;
 use crate::errors::*;
 
-use super::block::*;
 use super::boot_block::*;
 use super::options::*;
 

@@ -3,11 +3,11 @@ use std::ops;
 use std::path::Path;
 use std::rc::Rc;
 
+use crate::block::*;
 use crate::disk::*;
 use crate::errors::*;
 
 use super::amiga_dos::*;
-use super::block::*;
 use super::block_type::*;
 use super::constants::*;
 use super::options::*;

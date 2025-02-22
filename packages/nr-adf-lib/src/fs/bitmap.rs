@@ -1,11 +1,11 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use crate::block::*;
 use crate::disk::*;
 use crate::errors::*;
 
 use super::amiga_dos::*;
-use super::block::*;
 use super::checksum::*;
 use super::constants::*;
 

@@ -4,10 +4,10 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::time::SystemTime;
 
+use crate::block::*;
 use crate::disk::*;
 use crate::errors::*;
 
-use super::block::*;
 use super::block_type::*;
 use super::constants::*;
 use super::options::*;
