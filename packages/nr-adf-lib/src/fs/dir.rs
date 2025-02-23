@@ -10,24 +10,13 @@ use crate::disk::*;
 use crate::errors::*;
 
 use super::amiga_dos::*;
-use super::block_type::*;
 use super::constants::*;
+use super::metadata::*;
 
 
-#[derive(Clone, Copy, Debug)]
-pub enum FileType {
-    File,
-    Dir,
-    Link,
-}
-
-impl Default for FileType {
-    fn default() -> Self { Self::File }
-}
-
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct DirEntry {
-    file_type: FileType,
+    metadata: Metadata,
     name: String,
     path: PathBuf,
 }
@@ -36,32 +25,16 @@ impl DirEntry {
     fn create(
         disk: Rc<RefCell<Disk>>,
         parent_path: &Path,
-        addr: LBAAddress,
+        header_block_address: LBAAddress,
     ) -> Result<Self, Error> {
-        let br = Block::new(disk, addr);
+        let block = Block::new(disk, header_block_address);
+        let metadata = Metadata::try_from(&block)?;
 
-        br.check_block_primary_type(&[BlockPrimaryType::Header])?;
-
-        let file_type = match br.read_block_secondary_type()? {
-            BlockSecondaryType::Root |
-            BlockSecondaryType::Directory |
-            BlockSecondaryType::HardLinkDirectory => {
-                FileType::Dir
-            },
-            BlockSecondaryType::File |
-            BlockSecondaryType::HardLinkFile => {
-                FileType::File
-            },
-            BlockSecondaryType::SoftLink => {
-                FileType::Link
-            },
-        };
-
-        let name = br.read_name()?;
+        let name = block.read_name()?;
         let path = parent_path.join(&name);
 
         Ok(Self {
-            file_type,
+            metadata,
             name,
             path,
         })
@@ -70,7 +43,11 @@ impl DirEntry {
 
 impl DirEntry {
     pub fn file_type(&self) -> FileType {
-        self.file_type
+        self.metadata.file_type()
+    }
+
+    pub fn metadata(&self) -> Metadata {
+        self.metadata
     }
 
     pub fn name(&self) -> &str {
