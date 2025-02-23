@@ -6,8 +6,8 @@ use crate::block::*;
 use crate::disk::*;
 use crate::errors::*;
 
+use super::amiga_dos_options::*;
 use super::boot_block::*;
-use super::options::*;
 
 
 pub(super) struct AmigaDosInner {

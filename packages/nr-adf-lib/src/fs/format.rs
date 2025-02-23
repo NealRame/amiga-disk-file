@@ -5,10 +5,10 @@ use crate::disk::*;
 use crate::errors::*;
 
 use super::amiga_dos::*;
+use super::amiga_dos_options::*;
 use super::bitmap::*;
 use super::boot_block::*;
 use super::root_block::*;
-use super::options::*;
 
 
 #[derive(Clone, Debug, Default)]

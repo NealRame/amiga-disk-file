@@ -16,7 +16,7 @@ mod info;
 mod lookup;
 mod name;
 mod metadata;
-mod options;
+mod amiga_dos_options;
 mod root_block;
 
 pub use amiga_dos::*;
@@ -24,5 +24,5 @@ pub use dir::*;
 pub use file::*;
 pub use format::*;
 pub use info::*;
-pub use options::*;
+pub use amiga_dos_options::*;
 pub use metadata::*;

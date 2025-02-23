@@ -8,9 +8,9 @@ use crate::block::*;
 use crate::disk::*;
 use crate::errors::*;
 
+use super::amiga_dos_options::*;
 use super::block_type::*;
 use super::constants::*;
-use super::options::*;
 
 
 #[derive(Clone, Debug)]

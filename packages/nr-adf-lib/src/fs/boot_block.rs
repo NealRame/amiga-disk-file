@@ -4,8 +4,8 @@ use std::rc::Rc;
 use crate::disk::*;
 use crate::errors::*;
 
+use super::amiga_dos_options::*;
 use super::constants::*;
-use super::options::*;
 
 
 fn compute_checksum(data: &[u8]) -> u32 {

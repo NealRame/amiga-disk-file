@@ -7,10 +7,10 @@ use crate::disk::*;
 use crate::errors::*;
 
 use super::amiga_dos::*;
+use super::amiga_dos_options::*;
 use super::boot_block::*;
 use super::constants::*;
 use super::name::*;
-use super::options::*;
 
 
 fn path_split<P: AsRef<Path>>(

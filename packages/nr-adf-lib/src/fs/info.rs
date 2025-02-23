@@ -4,8 +4,8 @@ use crate::block::*;
 use crate::errors::*;
 
 use super::amiga_dos::*;
+use super::amiga_dos_options::*;
 use super::boot_block::*;
-use super::options::*;
 
 
 #[derive(Clone, Debug)]
