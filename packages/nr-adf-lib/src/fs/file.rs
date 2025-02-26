@@ -1,7 +1,9 @@
 use std::cell::RefCell;
+// use std::ffi::OsStr;
 use std::ops;
 use std::path::Path;
 use std::rc::Rc;
+// use std::time::SystemTime;
 
 use crate::block::*;
 use crate::disk::*;
@@ -11,6 +13,7 @@ use super::amiga_dos::*;
 use super::amiga_dos_options::*;
 use super::block_type::*;
 use super::constants::*;
+use super::file_open::*;
 
 
 #[repr(usize)]
@@ -112,6 +115,34 @@ impl FileDataBlockListEntry {
         } else {
             Ok(None)
         }
+    }
+
+    pub(super) fn try_get_block_data_list(
+        disk: Rc<RefCell<Disk>>,
+        header_block_addr: LBAAddress,
+    ) -> Result<Vec<FileDataBlockListEntry>, Error> {
+        let mut entries = Vec::new();
+        let mut extension_block_address = header_block_addr;
+
+        while extension_block_address != 0 {
+            for extension_block_index in 0..BLOCK_DATA_LIST_SIZE {
+                match FileDataBlockListEntry::try_create(
+                    disk.clone(),
+                    extension_block_address,
+                    extension_block_index,
+                )? {
+                    Some(entry) => entries.push(entry),
+                    None => break,
+                };
+            }
+
+            extension_block_address = Block::new(
+                disk.clone(),
+                extension_block_address,
+            ).read_data_extension_block_addr()?;
+        }
+
+        Ok(entries)
     }
 }
 
@@ -298,62 +329,24 @@ impl File {
     }
 }
 
-impl AmigaDosInner {
-    fn try_get_block_data_list(
-        &self,
-        header_block_addr: LBAAddress,
-    ) -> Result<Vec<FileDataBlockListEntry>, Error> {
-        let mut entries = Vec::new();
-        let mut extension_block_address = header_block_addr;
-
-        while extension_block_address != 0 {
-            for extension_block_index in 0..BLOCK_DATA_LIST_SIZE {
-                match FileDataBlockListEntry::try_create(
-                    self.disk(),
-                    extension_block_address,
-                    extension_block_index,
-                )? {
-                    Some(entry) => entries.push(entry),
-                    None => break,
-                };
-            }
-
-            extension_block_address = Block::new(
-                self.disk(),
-                extension_block_address,
-            ).read_data_extension_block_addr()?;
-        }
-
-        Ok(entries)
-    }
-}
-
-impl AmigaDosInner {
-    fn read_file_size(
-        &self,
-        header_block_addr: LBAAddress,
-    ) -> Result<usize, Error> {
-        Block::new(
-            self.disk(),
-            header_block_addr,
-        ).read_file_size()
-    }
-}
-
-impl AmigaDos {
-    /// Attempts to open a file.
-    pub fn open<P: AsRef<Path>>(
-        &self,
-        path: P,
+impl File {
+    pub(super) fn try_open(
+        fs: Rc<RefCell<AmigaDosInner>>,
+        path: &Path,
         mode: usize,
     ) -> Result<File, Error> {
-        if mode & FileMode::Append
-        && mode & FileMode::Truncate {
-            return Err(Error::InvalidFileModeError);
-        }
-
-        let fs = self.inner.clone();
         let filesystem_type = fs.borrow().get_filesystem_type()?;
+        let metadata = fs.borrow().metadata(path)?;
+
+        let header_block_addr = metadata.header_block_address();
+        let size = metadata.size();
+        let pos = 0;
+
+        let block_data_list = FileDataBlockListEntry::try_get_block_data_list(
+            fs.borrow().disk(),
+            header_block_addr,
+        )?;
+
         let (
             block_data_offset,
             block_data_size,
@@ -368,16 +361,6 @@ impl AmigaDos {
             ),
         };
 
-        let header_block_addr = fs.borrow().lookup(path)?;
-        let size = fs.borrow().read_file_size(header_block_addr)?;
-        let pos = if mode & FileMode::Append {
-            size
-        } else {
-            0
-        };
-
-        let block_data_list = fs.borrow().try_get_block_data_list(header_block_addr)?;
-
         Ok(File {
             fs,
             block_data_list,
@@ -388,5 +371,36 @@ impl AmigaDos {
             pos,
             size,
         })
+    }
+
+    // pub(super) fn try_create(
+    //     fs: Rc<RefCell<AmigaDosInner>>,
+    //     path: &Path,
+    //     mode: usize,
+    // ) -> Result<File, Error> {
+    //     let filesystem_type = fs.borrow().get_filesystem_type()?;
+
+    //     let parent_path = path.parent().ok_or(Error::InvalidPathError)?;
+    //     let parent_block_addr = fs.borrow().lookup_path(parent_path)?;
+
+    //     let file_name
+    //         = path.file_name()
+    //             .and_then(OsStr::to_str)
+    //             .ok_or(Error::InvalidPathError)?;
+
+    //     if let Some(entry)
+    //         = fs.borrow().lookup_entry(parent_block_addr, file_name)? {
+    //         return Err(Error::AlreadyExists);
+    //     }
+
+
+
+    //     Ok(())
+    // }
+}
+
+impl File {
+    pub fn options() -> OpenOptions {
+        OpenOptions::default()
     }
 }

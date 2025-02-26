@@ -93,7 +93,7 @@ impl ReadDir {
         fs: Rc<RefCell<AmigaDosInner>>,
         path: P,
     ) -> Result<Self, Error> {
-        let block_addr = fs.borrow().lookup(&path)?;
+        let block_addr = fs.borrow().lookup_path(&path)?;
         let entry_block_addr_list = read_dir(
             fs.borrow().disk(),
             block_addr

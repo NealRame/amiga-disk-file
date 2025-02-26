@@ -25,6 +25,8 @@ pub enum Error {
     InvalidFilesystemBlockSecondaryTypeError(u32),
     UnexpectedFilesystemBlockSecondaryTypeError(u32),
 
+    AlreadyExists,
+
     NotFoundError,
 
     NoSpaceLeft,

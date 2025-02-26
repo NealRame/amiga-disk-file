@@ -68,7 +68,10 @@ impl AmigaDos {
         let mut buf = [0; BLOCK_SIZE];
 
         let mut output = Vec::new();
-        let mut input = self.open(&path, 0|FileMode::Read)?;
+        let mut input = File::options().read(true).open(
+            self,
+            path.as_ref(),
+        )?;
 
         loop {
             let count = input.read(&mut buf)?;
