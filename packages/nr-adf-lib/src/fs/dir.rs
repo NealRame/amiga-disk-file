@@ -22,7 +22,7 @@ pub struct DirEntry {
 }
 
 impl DirEntry {
-    fn create(
+    fn new(
         disk: Rc<RefCell<Disk>>,
         parent_path: &Path,
         header_block_address: LBAAddress,
@@ -117,6 +117,6 @@ impl Iterator for ReadDir {
 
         self.entry_block_addr_list
             .pop()
-            .map(|addr| DirEntry::create(disk, path, addr))
+            .map(|addr| DirEntry::new(disk, path, addr))
     }
 }
