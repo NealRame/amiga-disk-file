@@ -89,7 +89,7 @@ pub struct ReadDir {
 }
 
 impl ReadDir {
-    fn create<P: AsRef<Path>>(
+    pub(super) fn create<P: AsRef<Path>>(
         fs: Rc<RefCell<AmigaDosInner>>,
         path: P,
     ) -> Result<Self, Error> {
@@ -118,14 +118,5 @@ impl Iterator for ReadDir {
         self.entry_block_addr_list
             .pop()
             .map(|addr| DirEntry::create(disk, path, addr))
-    }
-}
-
-impl AmigaDos {
-    pub fn read_dir<P: AsRef<Path>>(
-        &self,
-        path: P,
-    ) -> Result<ReadDir, Error> {
-        ReadDir::create(self.inner.clone(), &path)
     }
 }

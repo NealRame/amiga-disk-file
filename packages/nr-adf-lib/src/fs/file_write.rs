@@ -1,9 +1,6 @@
-use std::path::Path;
-
 use crate::block::*;
 use crate::errors::*;
 
-use super::amiga_dos::*;
 use super::file::*;
 
 
@@ -54,18 +51,5 @@ impl File {
         }
 
         Ok(count)
-    }
-}
-
-impl AmigaDos {
-    /// Writes a slice as the entire contents of a file.
-    /// This function will create a file if it does not exist, and will
-    /// entirely replace its contents if it does.
-    pub fn write<P: AsRef<Path>, C: AsRef<[u8]>>(
-        &self,
-        path: P,
-        contents: C
-    ) -> Result<(), Error> {
-        unimplemented!()
     }
 }

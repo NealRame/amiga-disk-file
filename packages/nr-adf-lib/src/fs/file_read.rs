@@ -1,10 +1,6 @@
-use std::path::Path;
-
 use crate::block::*;
-use crate::disk::*;
 use crate::errors::*;
 
-use super::amiga_dos::*;
 use super::file::*;
 
 
@@ -56,33 +52,5 @@ impl File {
             }
         }
         Ok(count)
-    }
-}
-
-impl AmigaDos {
-    /// Reads the entire contents of a file into a bytes vector.
-    pub fn read<P: AsRef<Path>>(
-        &self,
-        path: P,
-    ) -> Result<Vec<u8>, Error> {
-        let mut buf = [0; BLOCK_SIZE];
-
-        let mut output = Vec::new();
-        let mut input = File::options().read(true).open(
-            self,
-            path.as_ref(),
-        )?;
-
-        loop {
-            let count = input.read(&mut buf)?;
-
-            if count > 0 {
-                output.extend_from_slice(&buf[..count]);
-            } else {
-                break
-            }
-        }
-
-        Ok(output)
     }
 }
