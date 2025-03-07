@@ -83,7 +83,7 @@ impl AmigaDos {
         &self,
         path: P,
     ) -> Result<ReadDir, Error> {
-        ReadDir::create(self.inner.clone(), &path)
+        ReadDir::new(self.inner.clone(), &path)
     }
 
     /// Reads the entire contents of a file into a bytes vector.

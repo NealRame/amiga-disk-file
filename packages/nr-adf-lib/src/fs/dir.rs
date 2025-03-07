@@ -89,7 +89,7 @@ pub struct ReadDir {
 }
 
 impl ReadDir {
-    pub(super) fn create<P: AsRef<Path>>(
+    pub(super) fn new<P: AsRef<Path>>(
         fs: Rc<RefCell<AmigaDosInner>>,
         path: P,
     ) -> Result<Self, Error> {
