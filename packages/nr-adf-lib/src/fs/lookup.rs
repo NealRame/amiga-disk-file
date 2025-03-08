@@ -7,7 +7,6 @@ use crate::disk::*;
 use crate::errors::*;
 
 use super::amiga_dos::*;
-use super::amiga_dos_options::*;
 use super::boot_block::*;
 use super::constants::*;
 use super::name::*;
@@ -28,12 +27,14 @@ fn path_split<P: AsRef<Path>>(
         .map(|res| res.collect::<Vec<String>>())
 }
 
-fn lookup(
+pub(super) fn lookup_entry(
     disk: Rc<RefCell<Disk>>,
     block_addr: LBAAddress,
     name: &str,
-    international_mode: InternationalMode,
 ) -> Result<Option<LBAAddress>, Error> {
+    let boot_block = BootBlockReader::try_from_disk(disk.clone())?;
+    let international_mode = boot_block.get_international_mode();
+
     let hash_table = Block::new(disk.clone(), block_addr).read_hash_table()?;
     let hash_index = hash_name(&name, international_mode);
     let mut addr = hash_table[hash_index] as LBAAddress;
@@ -53,28 +54,16 @@ fn lookup(
 }
 
 impl AmigaDosInner {
-    // pub(super) fn lookup_entry(
-    //     &self,
-    //     block_addr: LBAAddress,
-    //     name: &str,
-    // ) -> Result<Option<LBAAddress>, Error> {
-    //     let boot_block = BootBlockReader::try_from_disk(self.disk())?;
-    //     let international_mode = boot_block.get_international_mode();
-
-    //     lookup(self.disk(), block_addr, &name, international_mode)
-    // }
-
-    pub(super) fn lookup_path<P: AsRef<Path>>(
+    pub(super) fn lookup<P: AsRef<Path>>(
         &self,
         path: P,
     ) -> Result<LBAAddress, Error> {
         if let Some(path) = path_split(path) {
             let boot_block = BootBlockReader::try_from_disk(self.disk())?;
-            let international_mode = boot_block.get_international_mode();
             let mut block_addr = boot_block.get_root_block_address();
 
             for name in path {
-                if let Some(addr) = lookup(self.disk(), block_addr, &name, international_mode)? {
+                if let Some(addr) = lookup_entry(self.disk(), block_addr, &name)? {
                     block_addr = addr;
                 } else {
                     return Err(Error::NotFoundError);

@@ -11,6 +11,7 @@ use crate::errors::*;
 
 use super::amiga_dos::*;
 use super::constants::*;
+use super::lookup::*;
 use super::metadata::*;
 
 
@@ -19,26 +20,6 @@ pub struct DirEntry {
     metadata: Metadata,
     name: String,
     path: PathBuf,
-}
-
-impl DirEntry {
-    fn new(
-        disk: Rc<RefCell<Disk>>,
-        parent_path: &Path,
-        header_block_address: LBAAddress,
-    ) -> Result<Self, Error> {
-        let block = Block::new(disk, header_block_address);
-        let metadata = Metadata::try_from(&block)?;
-
-        let name = block.read_name()?;
-        let path = parent_path.join(&name);
-
-        Ok(Self {
-            metadata,
-            name,
-            path,
-        })
-    }
 }
 
 impl DirEntry {
@@ -63,60 +44,130 @@ fn non_zero(addr: &u32) -> bool {
     *addr != 0
 }
 
-fn read_dir(
-    disk: Rc<RefCell<Disk>>,
-    block_addr: LBAAddress,
-) -> Result<Vec<LBAAddress>, Error> {
-    let hash_table = Block::new(disk.clone(), block_addr).read_hash_table()?;
 
-    let mut entries = vec![];
-    for mut block_addr in hash_table.iter().copied().filter(non_zero) {
-        while block_addr != 0 {
-            entries.push(block_addr as LBAAddress);
-            block_addr = Block::new(
-                disk.clone(),
-                block_addr as LBAAddress,
-            ).read_u32(BLOCK_HASH_CHAIN_NEXT_OFFSET)?;
-        }
-    }
-    Ok(entries)
+#[derive(Clone, Debug)]
+pub(super) struct Dir {
+    pub(super) fs: Rc<RefCell<AmigaDosInner>>,
+    pub(super) header_block_address: LBAAddress,
+    pub(super) path: PathBuf,
 }
 
-pub struct ReadDir {
-    fs: Rc<RefCell<AmigaDosInner>>,
+impl Dir {
+    fn try_with_block_address<P: AsRef<Path>>(
+        fs: Rc<RefCell<AmigaDosInner>>,
+        block_addr: LBAAddress,
+        path: P,
+    ) -> Result<Self, Error> {
+        Ok(Self {
+            fs,
+            header_block_address: block_addr,
+            path: PathBuf::from(path.as_ref()),
+        })
+    }
+
+    pub(super) fn try_with_path<P: AsRef<Path>>(
+        fs: Rc<RefCell<AmigaDosInner>>,
+        path: P,
+    ) -> Result<Self, Error> {
+        let block_addr = fs.borrow().lookup(path.as_ref())?;
+
+        Self::try_with_block_address(
+            fs,
+            block_addr,
+            path.as_ref(),
+        )
+    }
+}
+
+impl Dir {
+    pub(super) fn lookup(
+        &self,
+        name: &str,
+    ) -> Result<Option<LBAAddress>, Error> {
+        lookup_entry(self.fs.borrow().disk(), self.header_block_address, name)
+    }
+
+    pub(super) fn create_file(
+        &mut self,
+        name: &str,
+    ) -> Result<Option<LBAAddress>, Error> {
+        unimplemented!()
+    }
+
+    pub(super) fn create_dir(
+        &mut self,
+        name: &str,
+    ) -> Result<Option<LBAAddress>, Error> {
+        unimplemented!()
+    }
+}
+
+pub struct DirIterator {
+    disk: Rc<RefCell<Disk>>,
     entry_block_addr_list: Vec<LBAAddress>,
     path: PathBuf,
 }
 
-impl ReadDir {
-    pub(super) fn new<P: AsRef<Path>>(
-        fs: Rc<RefCell<AmigaDosInner>>,
-        path: P,
-    ) -> Result<Self, Error> {
-        let block_addr = fs.borrow().lookup_path(&path)?;
-        let entry_block_addr_list = read_dir(
-            fs.borrow().disk(),
-            block_addr
-        )?;
-
-        Ok(Self {
-            fs,
-            entry_block_addr_list,
-            path: PathBuf::from(path.as_ref()),
-        })
-    }
-}
-
-impl Iterator for ReadDir {
+impl Iterator for DirIterator {
     type Item = Result<DirEntry, Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let fs = self.fs.borrow();
-        let disk = fs.disk();
-        let path = &self.path;
+        if let Some(addr) = self.entry_block_addr_list.pop() {
+            let block = Block::new(self.disk.clone(), addr);
 
-        self.entry_block_addr_list
-            .pop()
-            .map(|addr| DirEntry::new(disk, path, addr))
+            let metadata = match Metadata::try_from(&block) {
+                Ok(metadata) => metadata,
+                Err(err) => {
+                    return Some(Err(err));
+                },
+            };
+
+            let name = match block.read_name() {
+                Ok(name) => name,
+                Err(err) => {
+                    return Some(Err(err));
+                },
+            };
+
+            let path = self.path.join(&name);
+
+            Some(Ok(DirEntry {
+                metadata,
+                name,
+                path,
+            }))
+        } else {
+            None
+        }
+    }
+}
+
+impl Dir {
+    pub(super) fn read(
+        &self,
+    ) -> Result<DirIterator, Error> {
+        let disk = self.fs.borrow().disk();
+
+        let hash_table = Block::new(
+            disk.clone(),
+            self.header_block_address,
+        ).read_hash_table()?;
+
+        let mut entry_block_addr_list = vec![];
+        for mut block_addr in hash_table.iter().copied().filter(non_zero) {
+            while block_addr != 0 {
+                entry_block_addr_list.push(block_addr as LBAAddress);
+                block_addr = Block::new(
+                    disk.clone(),
+                    block_addr as LBAAddress,
+                ).read_u32(BLOCK_HASH_CHAIN_NEXT_OFFSET)?;
+            }
+        }
+
+        Ok(DirIterator {
+            disk: disk.clone(),
+            entry_block_addr_list,
+            path: self.path.clone(),
+        })
     }
 }

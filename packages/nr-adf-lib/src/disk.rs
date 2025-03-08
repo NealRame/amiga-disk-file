@@ -19,6 +19,7 @@ impl DiskType {
     }
 }
 
+#[derive(Debug)]
 pub struct Disk {
     disk_data: Vec<u8>,
     disk_type: DiskType,

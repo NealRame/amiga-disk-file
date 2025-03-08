@@ -94,7 +94,7 @@ impl AmigaDosInner {
         &self,
         path: &Path,
     ) -> Result<Metadata, Error> {
-        let header_block_address = self.lookup_path(path)?;
+        let header_block_address = self.lookup(path)?;
         let disk = self.disk();
         let block = Block::new(disk, header_block_address);
 

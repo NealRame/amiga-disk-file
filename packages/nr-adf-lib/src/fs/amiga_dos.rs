@@ -11,7 +11,7 @@ use super::boot_block::*;
 use super::dir::*;
 use super::file::*;
 
-
+#[derive(Debug)]
 pub(super) struct AmigaDosInner {
     disk: Rc<RefCell<Disk>>,
     bitmap_block_addresses: Box<[LBAAddress]>,
@@ -82,8 +82,11 @@ impl AmigaDos {
     pub fn read_dir<P: AsRef<Path>>(
         &self,
         path: P,
-    ) -> Result<ReadDir, Error> {
-        ReadDir::new(self.inner.clone(), &path)
+    ) -> Result<DirIterator, Error> {
+        Dir::try_with_path(
+            self.inner.clone(),
+            path,
+        )?.read()
     }
 
     /// Reads the entire contents of a file into a bytes vector.
