@@ -10,9 +10,10 @@ use crate::disk::*;
 use crate::errors::*;
 
 use super::amiga_dos::*;
+use super::boot_block::*;
 use super::constants::*;
-use super::lookup::*;
 use super::metadata::*;
+use super::name::*;
 
 
 #[derive(Clone, Debug)]
@@ -44,22 +45,21 @@ fn non_zero(addr: &u32) -> bool {
     *addr != 0
 }
 
-
 #[derive(Clone, Debug)]
 pub(super) struct Dir {
-    pub(super) fs: Rc<RefCell<AmigaDosInner>>,
+    pub(super) disk: Rc<RefCell<Disk>>,
     pub(super) header_block_address: LBAAddress,
     pub(super) path: PathBuf,
 }
 
 impl Dir {
-    fn try_with_block_address<P: AsRef<Path>>(
-        fs: Rc<RefCell<AmigaDosInner>>,
+    pub(super) fn try_with_block_address<P: AsRef<Path>>(
+        disk: Rc<RefCell<Disk>>,
         block_addr: LBAAddress,
         path: P,
     ) -> Result<Self, Error> {
         Ok(Self {
-            fs,
+            disk,
             header_block_address: block_addr,
             path: PathBuf::from(path.as_ref()),
         })
@@ -72,7 +72,7 @@ impl Dir {
         let block_addr = fs.borrow().lookup(path.as_ref())?;
 
         Self::try_with_block_address(
-            fs,
+            fs.borrow().disk(),
             block_addr,
             path.as_ref(),
         )
@@ -84,7 +84,29 @@ impl Dir {
         &self,
         name: &str,
     ) -> Result<Option<LBAAddress>, Error> {
-        lookup_entry(self.fs.borrow().disk(), self.header_block_address, name)
+        let boot_block = BootBlockReader::try_from_disk(self.disk.clone())?;
+        let international_mode = boot_block.get_international_mode();
+
+        let hash_index = hash_name(&name, international_mode);
+        let hash_table = Block::new(
+            self.disk.clone(),
+            self.header_block_address,
+        ).read_hash_table()?;
+
+        let mut addr = hash_table[hash_index] as LBAAddress;
+
+        while addr != 0 {
+            let block = Block::new(self.disk.clone(), addr);
+            let entry_name = block.read_name()?;
+
+            if entry_name == name {
+                return Ok(Some(addr));
+            }
+
+            addr = block.read_u32(BLOCK_HASH_CHAIN_NEXT_OFFSET)? as LBAAddress;
+        }
+
+        Ok(None)
     }
 
     pub(super) fn create_file(
@@ -146,10 +168,8 @@ impl Dir {
     pub(super) fn read(
         &self,
     ) -> Result<DirIterator, Error> {
-        let disk = self.fs.borrow().disk();
-
         let hash_table = Block::new(
-            disk.clone(),
+            self.disk.clone(),
             self.header_block_address,
         ).read_hash_table()?;
 
@@ -158,14 +178,14 @@ impl Dir {
             while block_addr != 0 {
                 entry_block_addr_list.push(block_addr as LBAAddress);
                 block_addr = Block::new(
-                    disk.clone(),
+                    self.disk.clone(),
                     block_addr as LBAAddress,
                 ).read_u32(BLOCK_HASH_CHAIN_NEXT_OFFSET)?;
             }
         }
 
         Ok(DirIterator {
-            disk: disk.clone(),
+            disk: self.disk.clone(),
             entry_block_addr_list,
             path: self.path.clone(),
         })

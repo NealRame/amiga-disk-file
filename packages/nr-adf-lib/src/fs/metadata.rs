@@ -8,6 +8,7 @@ use crate::errors::*;
 use super::amiga_dos::*;
 use super::block_type::*;
 
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum FileType {
     File,
@@ -18,6 +19,7 @@ pub enum FileType {
 impl Default for FileType {
     fn default() -> Self { Self::File }
 }
+
 
 #[derive(Clone, Copy, Debug)]
 pub struct Metadata {
