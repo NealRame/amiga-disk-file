@@ -117,9 +117,9 @@ impl OpenOptions {
         }
 
         if self.create {
-            File::try_create(fs, path, mode, self.create_new)
+            File::try_create(fs, path.as_ref(), mode, self.create_new)
         } else {
-            File::try_open(fs, path, mode)
+            File::try_open(fs, path.as_ref(), mode)
         }
     }
 }

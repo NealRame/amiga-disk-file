@@ -343,9 +343,9 @@ impl File {
 }
 
 impl File {
-    pub(super) fn try_open<P: AsRef<Path>>(
+    pub(super) fn try_open(
         fs: &AmigaDos,
-        path: P,
+        path: &Path,
         mode: usize,
     ) -> Result<Self, Error> {
         let filesystem_type = fs.get_filesystem_type()?;
@@ -386,18 +386,17 @@ impl File {
         })
     }
 
-
-    pub(super) fn try_create<P: AsRef<Path>>(
+    pub(super) fn try_create(
         fs: &AmigaDos,
-        path: P,
+        path: &Path,
         mode: usize,
-        new: bool,
+        create_new: bool,
     ) -> Result<File, Error> {
-        let parent_path = path.as_ref().parent().ok_or(Error::InvalidPathError)?;
+        let parent_path = path.parent().ok_or(Error::InvalidPathError)?;
         let mut parent_dir = Dir::try_with_path(fs, parent_path)?;
 
         let file_name
-            = path.as_ref()
+            = path
                 .file_name()
                 .and_then(OsStr::to_str)
                 .ok_or(Error::InvalidPathError)?;
@@ -406,7 +405,7 @@ impl File {
             return File::try_open(fs, path, mode);
         }
 
-        if new {
+        if create_new {
             return Err(Error::AlreadyExists);
         }
 
