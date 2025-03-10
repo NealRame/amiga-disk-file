@@ -26,9 +26,7 @@ impl File {
         &mut self,
         mut buf: &mut [u8],
     ) -> Result<usize, Error> {
-        if ! self.mode & FileMode::Read {
-            return Err(Error::BadFileDescriptor);
-        }
+        check_file_mode(FileMode::Read, self.mode)?;
 
         if self.pos >= self.size {
             return Ok(0);

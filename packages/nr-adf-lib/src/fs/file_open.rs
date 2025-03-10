@@ -112,28 +112,14 @@ impl OpenOptions {
             mode = mode | FileMode::Read;
         }
 
-        if self.append || self.write {
+        if self.write {
             mode = mode | FileMode::Write;
         }
 
-        // match fs.metadata(path.as_ref()) {
-        //     Ok(_) if self.create_new => {
-        //         return Err(Error::AlreadyExists)
-        //     },
-        //     Ok(metadata) => {
-
-        //     },
-        //     Err(Error::NotFoundError) if self.create => {
-
-        //     },
-        //     Err(Error::NotFoundError) => {
-        //         return Err(Error::NotFoundError)
-        //     },
-        //     Err(err) => {
-        //         return Err(err)
-        //     }
-        // }
-
-        File::try_open(fs.inner.clone(), path.as_ref(), mode)
+        if self.create {
+            File::try_create(fs, path, mode, self.create_new)
+        } else {
+            File::try_open(fs, path, mode)
+        }
     }
 }

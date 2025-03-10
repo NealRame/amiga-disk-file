@@ -1,9 +1,8 @@
 use std::cell::RefCell;
-// use std::ffi::OsStr;
+use std::ffi::OsStr;
 use std::ops;
 use std::path::Path;
 use std::rc::Rc;
-// use std::time::SystemTime;
 
 use crate::block::*;
 use crate::disk::*;
@@ -13,7 +12,9 @@ use super::amiga_dos::*;
 use super::amiga_dos_options::*;
 use super::block_type::*;
 use super::constants::*;
+use super::dir::*;
 use super::file_open::*;
+use super::metadata::*;
 
 
 #[repr(usize)]
@@ -26,16 +27,9 @@ pub enum FileMode {
     /// If the file already exists, any write calls on it will overwrite its
     /// contents.
     Write    = 0x02,
-
-    /// This mode means that the file should be write-able when opened.
-    /// If the file already exists, any write calls on it will append data
-    /// instead of overwriting previous contents.
-    Append   = 0x04,
-
-    /// This mode means that the file should be write-able when opened.
-    /// If the file already exists, it will be truncated to 0 length.
-    Truncate = 0x08,
 }
+
+type FileModeMask = usize;
 
 impl Default for FileMode {
     fn default() -> Self {
@@ -43,43 +37,63 @@ impl Default for FileMode {
     }
 }
 
-impl ops::BitAnd<usize> for FileMode {
-    type Output = bool;
+impl ops::Not for FileMode {
+    type Output = FileModeMask;
 
-    fn bitand(self, rhs: usize) -> Self::Output {
-        (self as usize & rhs) != 0
+    fn not(self) -> Self::Output {
+        !(self as FileModeMask)
     }
 }
 
-impl ops::BitAnd<FileMode> for usize {
-    type Output = bool;
+impl ops::BitAnd<FileModeMask> for FileMode {
+    type Output = FileModeMask;
+
+    fn bitand(self, rhs: FileModeMask) -> Self::Output {
+        rhs & self as FileModeMask
+    }
+}
+
+impl ops::BitAnd<FileMode> for FileModeMask {
+    type Output = FileModeMask;
 
     fn bitand(self, rhs: FileMode) -> Self::Output {
-        (self & rhs as usize) != 0
+        rhs & self
     }
 }
 
 impl ops::BitOr<FileMode> for FileMode {
-    type Output = usize;
+    type Output = FileModeMask;
 
     fn bitor(self, rhs: FileMode) -> Self::Output {
-        self as usize | rhs as usize
+        self as FileModeMask | rhs as FileModeMask
     }
 }
 
-impl ops::BitOr<usize> for FileMode {
-    type Output = usize;
+impl ops::BitOr<FileModeMask> for FileMode {
+    type Output = FileModeMask;
 
-    fn bitor(self, rhs: usize) -> Self::Output {
-        rhs | self as usize
+    fn bitor(self, rhs: FileModeMask) -> Self::Output {
+        rhs | self as FileModeMask
     }
 }
 
-impl ops::BitOr<FileMode> for usize {
-    type Output = usize;
+impl ops::BitOr<FileMode> for FileModeMask {
+    type Output = FileModeMask;
 
     fn bitor(self, rhs: FileMode) -> Self::Output {
         rhs | self
+    }
+}
+
+
+pub(super) fn check_file_mode(
+    mode: FileMode,
+    mode_mask: FileModeMask,
+) -> Result<(), Error> {
+    if (mode_mask & mode as usize) == 0 {
+        Err(Error::BadFileDescriptor)
+    } else {
+        Ok(())
     }
 }
 
@@ -99,14 +113,13 @@ impl FileDataBlockListEntry {
         extension_block_addr: usize,
         extension_block_index: usize,
     ) -> Result<Option<Self>, Error> {
+        let index = BLOCK_DATA_LIST_SIZE - extension_block_index - 1;
         let data_block_address = Block::new(
             disk,
             extension_block_addr,
-        ).read_data_block_addr(
-            BLOCK_DATA_LIST_SIZE - extension_block_index - 1
-        )?;
+        ).read_block_table_address(index)?;
 
-        if data_block_address > 0 {
+        if let Some(data_block_address) = data_block_address {
             Ok(Some(Self {
                 data_block_address,
                 extension_block_addr,
@@ -122,9 +135,9 @@ impl FileDataBlockListEntry {
         header_block_addr: LBAAddress,
     ) -> Result<Vec<FileDataBlockListEntry>, Error> {
         let mut entries = Vec::new();
-        let mut extension_block_address = header_block_addr;
+        let mut block_address = Some(header_block_addr);
 
-        while extension_block_address != 0 {
+        while let Some(extension_block_address) = block_address {
             for extension_block_index in 0..BLOCK_DATA_LIST_SIZE {
                 match FileDataBlockListEntry::try_create(
                     disk.clone(),
@@ -136,10 +149,10 @@ impl FileDataBlockListEntry {
                 };
             }
 
-            extension_block_address = Block::new(
+            block_address = Block::new(
                 disk.clone(),
                 extension_block_address,
-            ).read_data_extension_block_addr()?;
+            ).read_block_chain_next_address()?;
         }
 
         Ok(entries)
@@ -170,7 +183,7 @@ impl File {
                 last_entry.extension_block_addr,
             );
 
-            ext_block.write_data_extension_block_addr(0)?;
+            ext_block.write_block_chain_next_address(0)?;
             ext_block.write_checksum(BLOCK_CHECKSUM_OFFSET)?;
         }
         Ok(())
@@ -185,7 +198,7 @@ impl File {
             entry.extension_block_addr,
         );
 
-        ext_block.write_data_block_addr(entry.extension_block_index, 0)?;
+        ext_block.write_block_table_address(entry.extension_block_index, 0)?;
         ext_block.write_u32(
             BLOCK_DATA_LIST_HIGH_SEQ_OFFSET,
             entry.extension_block_index as u32,
@@ -216,7 +229,7 @@ impl File {
         // allocated file extension block address.
         let mut last_ext_block = Block::new(disk.clone(), entry.data_block_address);
 
-        last_ext_block.write_data_extension_block_addr(extension_block_addr)?;
+        last_ext_block.write_block_chain_next_address(extension_block_addr)?;
         last_ext_block.write_checksum(BLOCK_CHECKSUM_OFFSET)?;
 
         // Initialize the newly allocated file extension block.
@@ -230,7 +243,7 @@ impl File {
             extension_block_addr as u32,
         )?;
         next_ext_block.write_u32(
-            BLOCK_DATA_LIST_PARENT_OFSET,
+            BLOCK_DATA_LIST_PARENT_OFFSET,
             self.header_block_addr as u32,
         )?;
 
@@ -256,9 +269,9 @@ impl File {
             extension_block_addr,
         );
 
-        ext_block.write_data_block_addr(extension_block_index, data_block_address)?;
+        ext_block.write_block_table_address(extension_block_index, data_block_address)?;
         ext_block.write_u32(
-            BLOCK_DATA_LIST_PARENT_OFSET,
+            BLOCK_DATA_LIST_PARENT_OFFSET,
             (extension_block_index + 1) as u32,
         )?;
 
@@ -285,8 +298,8 @@ impl File {
             self.header_block_addr,
         );
 
-        ext_block.write_data_block_addr(0, data_block_address)?;
-        ext_block.write_u32(BLOCK_DATA_LIST_PARENT_OFSET, 1u32)?;
+        ext_block.write_block_table_address(0, data_block_address)?;
+        ext_block.write_u32(BLOCK_DATA_LIST_PARENT_OFFSET, 1u32)?;
 
         let entry = FileDataBlockListEntry {
             data_block_address,
@@ -330,20 +343,20 @@ impl File {
 }
 
 impl File {
-    pub(super) fn try_open(
-        fs: Rc<RefCell<AmigaDosInner>>,
-        path: &Path,
+    pub(super) fn try_open<P: AsRef<Path>>(
+        fs: &AmigaDos,
+        path: P,
         mode: usize,
-    ) -> Result<File, Error> {
-        let filesystem_type = fs.borrow().get_filesystem_type()?;
-        let metadata = fs.borrow().metadata(path)?;
+    ) -> Result<Self, Error> {
+        let filesystem_type = fs.get_filesystem_type()?;
+        let metadata = fs.metadata(path)?;
 
         let header_block_addr = metadata.header_block_address();
         let size = metadata.size();
         let pos = 0;
 
         let block_data_list = FileDataBlockListEntry::try_get_block_data_list(
-            fs.borrow().disk(),
+            fs.disk(),
             header_block_addr,
         )?;
 
@@ -362,7 +375,7 @@ impl File {
         };
 
         Ok(File {
-            fs,
+            fs: fs.inner.clone(),
             block_data_list,
             block_data_offset,
             block_data_size,
@@ -373,30 +386,35 @@ impl File {
         })
     }
 
-    // pub(super) fn try_create(
-    //     fs: Rc<RefCell<AmigaDosInner>>,
-    //     path: &Path,
-    //     mode: usize,
-    // ) -> Result<File, Error> {
-    //     let filesystem_type = fs.borrow().get_filesystem_type()?;
 
-    //     let parent_path = path.parent().ok_or(Error::InvalidPathError)?;
-    //     let parent_block_addr = fs.borrow().lookup_path(parent_path)?;
+    pub(super) fn try_create<P: AsRef<Path>>(
+        fs: &AmigaDos,
+        path: P,
+        mode: usize,
+        new: bool,
+    ) -> Result<File, Error> {
+        let parent_path = path.as_ref().parent().ok_or(Error::InvalidPathError)?;
+        let mut parent_dir = Dir::try_with_path(fs, parent_path)?;
 
-    //     let file_name
-    //         = path.file_name()
-    //             .and_then(OsStr::to_str)
-    //             .ok_or(Error::InvalidPathError)?;
+        let file_name
+            = path.as_ref()
+                .file_name()
+                .and_then(OsStr::to_str)
+                .ok_or(Error::InvalidPathError)?;
 
-    //     if let Some(entry)
-    //         = fs.borrow().lookup_entry(parent_block_addr, file_name)? {
-    //         return Err(Error::AlreadyExists);
-    //     }
+        if parent_dir.create_entry(file_name, FileType::File)? {
+            return File::try_open(fs, path, mode);
+        }
 
+        if new {
+            return Err(Error::AlreadyExists);
+        }
 
+        let mut file = File::try_open(fs, path, mode)?;
 
-    //     Ok(())
-    // }
+        file.set_len(0)?;
+        Ok(file)
+    }
 }
 
 impl File {

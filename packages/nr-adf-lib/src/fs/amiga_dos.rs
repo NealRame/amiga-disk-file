@@ -79,14 +79,21 @@ impl TryFrom<Rc<RefCell<Disk>>> for AmigaDos {
 }
 
 impl AmigaDos {
+    pub(super) fn disk(&self) -> Rc<RefCell<Disk>> {
+        self.inner.borrow().disk()
+    }
+
+    pub(super) fn get_filesystem_type(&self) -> Result<FilesystemType, Error> {
+        self.inner.borrow().get_filesystem_type()
+    }
+}
+
+impl AmigaDos {
     pub fn read_dir<P: AsRef<Path>>(
         &self,
         path: P,
     ) -> Result<DirIterator, Error> {
-        Dir::try_with_path(
-            self.inner.clone(),
-            path,
-        )?.read()
+        Dir::try_with_path(self, path)?.read()
     }
 
     /// Reads the entire contents of a file into a bytes vector.
@@ -133,5 +140,15 @@ impl AmigaDos {
         path: P,
     ) -> Result<(), std::io::Error> {
         self.inner.borrow().dump(path)
+    }
+}
+
+impl AmigaDos {
+    pub fn to_address(addr: u32) -> Option<LBAAddress> {
+        if addr != 0 {
+            Some(addr as LBAAddress)
+        } else {
+            None
+        }
     }
 }

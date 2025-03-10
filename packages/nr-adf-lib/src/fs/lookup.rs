@@ -25,26 +25,29 @@ fn path_split<P: AsRef<Path>>(
         .map(|res| res.collect::<Vec<String>>())
 }
 
-impl AmigaDosInner {
+impl AmigaDos {
     pub(super) fn lookup<P: AsRef<Path>>(
         &self,
         path: P,
     ) -> Result<LBAAddress, Error> {
         if let Some(path) = path_split(path) {
-            let disk = self.disk();
+            let disk = self.inner.borrow().disk();
 
             let boot_block = BootBlockReader::try_from_disk(disk.clone())?;
+
             let mut current_block_addr = boot_block.get_root_block_address();
+            let mut current_path = PathBuf::from("/");
 
             for name in path {
                 let dir = Dir::try_with_block_address(
-                    self.disk(),
+                    self,
                     current_block_addr,
-                    PathBuf::from("/"),
+                    &current_path,
                 )?;
 
                 if let Some(addr) = dir.lookup(&name)? {
                     current_block_addr = addr;
+                    current_path = current_path.join(name);
                 } else {
                     return Err(Error::NotFoundError);
                 }

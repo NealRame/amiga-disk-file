@@ -25,7 +25,7 @@ impl Default for FileType {
 pub struct Metadata {
     header_block_address: LBAAddress,
     file_type: FileType,
-    size: usize,
+    file_size: usize,
     alteration_date: SystemTime,
 }
 
@@ -34,7 +34,6 @@ impl TryFrom<&Block> for Metadata {
 
     fn try_from(block: &Block) -> Result<Self, Self::Error> {
         let header_block_address = block.address;
-        let size = block.read_file_size()?;
         let alteration_date = block.read_alteration_date()?;
 
         let file_type = match block.read_block_secondary_type()? {
@@ -52,10 +51,16 @@ impl TryFrom<&Block> for Metadata {
             },
         };
 
+        let file_size = if file_type == FileType::File {
+            block.read_file_size()?
+        } else {
+            0
+        };
+
         Ok(Metadata {
+            file_size,
             file_type,
             header_block_address,
-            size,
             alteration_date,
         })
     }
@@ -79,7 +84,7 @@ impl Metadata {
     }
 
     pub fn size(&self) -> usize {
-        self.size
+        self.file_size
     }
 
     pub fn header_block_address(&self) -> LBAAddress {
@@ -94,9 +99,8 @@ impl Metadata {
 impl AmigaDosInner {
     pub(super) fn metadata(
         &self,
-        path: &Path,
+        header_block_address: LBAAddress,
     ) -> Result<Metadata, Error> {
-        let header_block_address = self.lookup(path)?;
         let disk = self.disk();
         let block = Block::new(disk, header_block_address);
 
@@ -111,6 +115,7 @@ impl AmigaDos {
         &self,
         path: P,
     ) -> Result<Metadata, Error> {
-        self.inner.borrow().metadata(path.as_ref())
+        let header_block_address = self.lookup(path.as_ref())?;
+        self.inner.borrow().metadata(header_block_address)
     }
 }

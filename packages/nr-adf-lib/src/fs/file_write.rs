@@ -21,9 +21,7 @@ impl File {
         &mut self,
         mut buf: &[u8],
     ) -> Result<usize, Error> {
-        if ! self.mode & FileMode::Write {
-            return Err(Error::BadFileDescriptor);
-        }
+        check_file_mode(FileMode::Write, self.mode)?;
 
         let mut count = 0;
 
