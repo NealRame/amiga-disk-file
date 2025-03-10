@@ -73,21 +73,6 @@ impl Block {
 
 
 impl Block {
-    // TODO delete this function (only used for read dir)
-    pub fn read_hash_table(
-        &self,
-    ) -> Result<Vec<u32>, Error> {
-        self.check_block_primary_type(&[BlockPrimaryType::Header])?;
-        self.check_block_secondary_type(&[
-            BlockSecondaryType::Root,
-            BlockSecondaryType::Directory,
-        ])?;
-        self.read_u32_vector(
-            BLOCK_HASH_TABLE_OFFSET,
-            BLOCK_HASH_TABLE_SIZE,
-        )
-    }
-
     pub fn read_bitmap(
         &self,
     ) -> Result<Vec<LBAAddress>, Error> {
@@ -109,7 +94,7 @@ impl Block {
     }
 
     pub fn read_block_table_address(
-        &mut self,
+        &self,
         index: usize,
     ) -> Result<Option<LBAAddress>, Error> {
         self.check_block_primary_type(&[
@@ -124,14 +109,21 @@ impl Block {
         }
     }
 
-    pub fn read_block_chain_next_address(
-        &mut self,
+    pub fn read_hash_chain_next_address(
+        &self,
+    ) -> Result<Option<LBAAddress>, Error> {
+        self.check_block_primary_type(&[BlockPrimaryType::Header])?;
+        Ok(AmigaDos::to_address(self.read_u32(BLOCK_HASH_CHAIN_NEXT_OFFSET)?))
+    }
+
+    pub fn read_data_list_extension_address(
+        &self,
     ) -> Result<Option<LBAAddress>, Error> {
         self.check_block_primary_type(&[
             BlockPrimaryType::Header,
             BlockPrimaryType::List,
         ])?;
-        Ok(AmigaDos::to_address(self.read_u32(BLOCK_CHAIN_NEXT_OFFSET)?))
+        Ok(AmigaDos::to_address(self.read_u32(BLOCK_DATA_LIST_EXTENSION_OFFSET)?))
     }
 
     pub fn read_name(
@@ -315,29 +307,6 @@ impl Block {
         self.write_u32(offset, chksum)
     }
 
-    // pub fn write_data_block_addr(
-    //     &mut self,
-    //     index: usize,
-    //     address: LBAAddress,
-    // ) -> Result<(), Error> {
-    //     if index < BLOCK_DATA_LIST_SIZE {
-    //         self.write_u32(
-    //             BLOCK_DATA_LIST_OFFSET + 4*index,
-    //             address as u32,
-    //         )?;
-    //         Ok(())
-    //     } else {
-    //         Err(Error::InvalidDataBlockIndexError(index))
-    //     }
-    // }
-
-    // pub fn write_data_extension_block_addr(
-    //     &mut self,
-    //     address: LBAAddress,
-    // ) -> Result<(), Error> {
-    //     self.write_u32(BLOCK_DATA_LIST_EXTENSION_OFFSET, address as u32)
-    // }
-
     pub fn write_block_table_address(
         &mut self,
         index: usize,
@@ -354,10 +323,17 @@ impl Block {
         }
     }
 
-    pub fn write_block_chain_next_address(
+    pub fn write_hash_chain_next_address(
         &mut self,
         address: LBAAddress,
     ) -> Result<(), Error> {
-        self.write_u32(BLOCK_CHAIN_NEXT_OFFSET, address as u32)
+        self.write_u32(BLOCK_HASH_CHAIN_NEXT_OFFSET, address as u32)
+    }
+
+    pub fn write_data_list_extension_address(
+        &mut self,
+        address: LBAAddress,
+    ) -> Result<(), Error> {
+        self.write_u32(BLOCK_DATA_LIST_EXTENSION_OFFSET, address as u32)
     }
 }

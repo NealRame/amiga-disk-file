@@ -78,7 +78,7 @@ impl RootBlockInitializer {
 
         block.write_u32(
             ROOT_BLOCK_HASH_TABLE_SIZE_OFFSET,
-            BLOCK_HASH_TABLE_SIZE as u32
+            BLOCK_TABLE_SIZE as u32,
         )?;
         block.write_u32(ROOT_BLOCK_BITMAP_FLAG_OFFSET, 0xffffffff)?;
         block.write_u32(ROOT_BLOCK_EXTENSION_OFFSET, 0)?;

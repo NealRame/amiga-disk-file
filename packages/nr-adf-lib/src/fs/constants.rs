@@ -7,8 +7,6 @@ pub const BLOCK_SECONDARY_TYPE_OFFSET       : usize = BLOCK_SIZE - 4;
 
 pub const BLOCK_CHECKSUM_OFFSET             : usize = 0x14;
 
-pub const BLOCK_HASH_TABLE_OFFSET           : usize = 0x18;
-pub const BLOCK_HASH_TABLE_SIZE             : usize = BLOCK_SIZE/4 - 56;
 pub const BLOCK_HASH_CHAIN_NEXT_OFFSET      : usize = BLOCK_SIZE - 0x10;
 
 pub const BLOCK_ALTERATION_DAYS_OFFSET      : usize = BLOCK_SIZE - 0x5c;
@@ -25,6 +23,7 @@ pub const BLOCK_DATA_LIST_HEADER_KEY_OFFSET : usize = 0x04;
 pub const BLOCK_DATA_LIST_HIGH_SEQ_OFFSET   : usize = 0x08;
 pub const BLOCK_DATA_LIST_SIZE              : usize = BLOCK_SIZE/4 - 56;
 pub const BLOCK_DATA_LIST_PARENT_OFFSET     : usize = BLOCK_SIZE - 0x0c;
+pub const BLOCK_DATA_LIST_EXTENSION_OFFSET  : usize = BLOCK_SIZE - 0x08;
 
 pub const BLOCK_DATA_FFS_OFFSET             : usize = 0;
 pub const BLOCK_DATA_FFS_SIZE               : usize = BLOCK_SIZE;
@@ -40,7 +39,7 @@ pub const BLOCK_DATA_OFS_SIZE               : usize = BLOCK_SIZE - 0x18;
 
 pub const BLOCK_TABLE_OFFSET                : usize = 0x18;
 pub const BLOCK_TABLE_SIZE                  : usize = BLOCK_SIZE/4 - 56;
-pub const BLOCK_CHAIN_NEXT_OFFSET           : usize = BLOCK_SIZE - 0x08;
+
 
 // Boot block /////////////////////////////////////////////////////////////////
 pub const BOOT_BLOCK_MAGIC_NUMBER           : &[u8; 3] = b"DOS";

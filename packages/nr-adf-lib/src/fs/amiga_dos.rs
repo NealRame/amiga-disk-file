@@ -8,7 +8,6 @@ use crate::errors::*;
 
 use super::amiga_dos_options::*;
 use super::boot_block::*;
-use super::dir::*;
 use super::file::*;
 
 #[derive(Debug)]
@@ -89,13 +88,6 @@ impl AmigaDos {
 }
 
 impl AmigaDos {
-    pub fn read_dir<P: AsRef<Path>>(
-        &self,
-        path: P,
-    ) -> Result<DirIterator, Error> {
-        Dir::try_with_path(self, path)?.read()
-    }
-
     /// Reads the entire contents of a file into a bytes vector.
     pub fn read<P: AsRef<Path>>(
         &self,

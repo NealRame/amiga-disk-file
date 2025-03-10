@@ -152,7 +152,7 @@ impl FileDataBlockListEntry {
             block_address = Block::new(
                 disk.clone(),
                 extension_block_address,
-            ).read_block_chain_next_address()?;
+            ).read_data_list_extension_address()?;
         }
 
         Ok(entries)
@@ -183,7 +183,7 @@ impl File {
                 last_entry.extension_block_addr,
             );
 
-            ext_block.write_block_chain_next_address(0)?;
+            ext_block.write_data_list_extension_address(0)?;
             ext_block.write_checksum(BLOCK_CHECKSUM_OFFSET)?;
         }
         Ok(())
@@ -229,7 +229,7 @@ impl File {
         // allocated file extension block address.
         let mut last_ext_block = Block::new(disk.clone(), entry.data_block_address);
 
-        last_ext_block.write_block_chain_next_address(extension_block_addr)?;
+        last_ext_block.write_data_list_extension_address(extension_block_addr)?;
         last_ext_block.write_checksum(BLOCK_CHECKSUM_OFFSET)?;
 
         // Initialize the newly allocated file extension block.
