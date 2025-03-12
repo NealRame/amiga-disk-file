@@ -401,7 +401,9 @@ impl File {
                 .and_then(OsStr::to_str)
                 .ok_or(Error::InvalidPathError)?;
 
-        if parent_dir.create_entry(file_name, FileType::File)? {
+        let (_, created) = parent_dir.create_entry(file_name, FileType::File)?;
+
+        if created {
             return File::try_open(fs, path, mode);
         }
 

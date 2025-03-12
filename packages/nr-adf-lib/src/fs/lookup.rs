@@ -6,24 +6,9 @@ use crate::errors::*;
 
 use super::amiga_dos::*;
 use super::boot_block::*;
+use super::dir::*;
+use super::path_split::*;
 
-use super::Dir;
-
-
-fn path_split<P: AsRef<Path>>(
-    path: P,
-) -> Option<Vec<String>> {
-    path.as_ref().to_str()
-        .map(|path| path.split("/"))
-        .map(|strs| strs.filter_map(|s| {
-            if s.len() > 0 {
-                Some(String::from(s))
-            } else {
-                None
-            }
-        }))
-        .map(|res| res.collect::<Vec<String>>())
-}
 
 impl AmigaDos {
     pub(super) fn lookup<P: AsRef<Path>>(

@@ -337,3 +337,31 @@ impl Block {
         self.write_u32(BLOCK_DATA_LIST_EXTENSION_OFFSET, address as u32)
     }
 }
+
+impl Block {
+    pub(super) fn init_header(
+        &mut self,
+        secondary_type: BlockSecondaryType,
+        name: &str,
+        parent: LBAAddress,
+        chain_next: Option<LBAAddress>,
+    ) -> Result<(), Error> {
+        self.clear()?;
+
+        self.write_block_primary_type(BlockPrimaryType::Header)?;
+        self.write_block_secondary_type(secondary_type)?;
+        self.write_alteration_date(&SystemTime::now())?;
+        self.write_hash_chain_next_address(chain_next.unwrap_or(0))?;
+        self.write_name(name)?;
+        self.write_u32(
+            BLOCK_DATA_LIST_HEADER_KEY_OFFSET,
+            self.address as u32,
+        )?;
+        self.write_u32(
+            BLOCK_DATA_LIST_PARENT_OFFSET,
+            parent as u32,
+        )?;
+
+        Ok(())
+    }
+}

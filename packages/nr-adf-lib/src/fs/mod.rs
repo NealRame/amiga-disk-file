@@ -1,4 +1,5 @@
 mod amiga_dos;
+mod amiga_dos_options;
 mod bitmap;
 mod block;
 mod block_type;
@@ -15,9 +16,9 @@ mod file_write;
 mod format;
 mod info;
 mod lookup;
-mod name;
 mod metadata;
-mod amiga_dos_options;
+mod name;
+mod path_split;
 mod root_block;
 
 pub use amiga_dos::*;

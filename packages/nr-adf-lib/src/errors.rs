@@ -13,6 +13,7 @@ pub enum Error {
     InvalidPathError,
     InvalidStringError,
     InvalidFileModeError,
+    InvalidFileTypeError,
     InvalidFilesystemTypeError,
     InvalidCacheModeError,
     InvalidInternationalModeError,
