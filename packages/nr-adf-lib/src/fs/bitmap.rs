@@ -69,18 +69,17 @@ fn update_bitmap_blocks(
     mut addr: LBAAddress,
 ) -> Result<(), Error> {
     let mut disk = disk.borrow_mut();
-    addr = addr - 2;
+
+    addr -= 2;
 
     let page_index = addr/BITMAP_BLOCK_BIT_COUNT;
-
-
     let page = disk.blocks_mut(bitmap_block_addresses[page_index], 1)?;
     let page_bit_offset = 32 + addr%BITMAP_BLOCK_BIT_COUNT;
 
     let page_word_index = page_bit_offset/32;
     let page_word_offset = page_bit_offset%32;
 
-    if let Some(dword) = page.chunks_mut(4).skip(page_word_index).next() {
+    if let Some(dword) = page.chunks_mut(4).nth(page_word_index) {
         let byte_index = std::mem::size_of::<u32>() - 1 - page_word_offset/8;
         let bit_offset = page_word_offset%8;
 
@@ -127,7 +126,7 @@ fn find_free_block_address_in_bitmap_block(
                 return Some(block_address_offset);
             }
             block_address_offset += 1;
-            word = word >> 1;
+            word >>= 1;
         }
     }
     None

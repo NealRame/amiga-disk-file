@@ -131,7 +131,7 @@ impl Dir {
         let boot_block = BootBlockReader::try_from_disk(disk.clone())?;
         let international_mode = boot_block.get_international_mode();
 
-        let hash_index = hash_name(&name, international_mode);
+        let hash_index = hash_name(name, international_mode);
         let head = Block::new(
             disk.clone(),
             self.header_block_address,
@@ -152,7 +152,7 @@ impl Dir {
         let boot_block = BootBlockReader::try_from_disk(disk.clone())?;
         let international_mode = boot_block.get_international_mode();
 
-        let hash_index = hash_name(&name, international_mode);
+        let hash_index = hash_name(name, international_mode);
         let head = Block::new(
             disk.clone(),
             parent_block_addr,
@@ -286,12 +286,12 @@ impl AmigaDos {
         &mut self,
         path: P,
     ) -> Result<(), Error> {
-        let parent_path = path.as_ref().parent().ok_or(Error::InvalidPathError)?;
+        let path = path.as_ref();
+        let parent_path = path.parent().ok_or(Error::InvalidPathError)?;
         let mut parent_dir = Dir::try_with_path(self, parent_path)?;
 
         let dir_name
             = path
-                .as_ref()
                 .file_name()
                 .and_then(OsStr::to_str)
                 .ok_or(Error::InvalidPathError)?;

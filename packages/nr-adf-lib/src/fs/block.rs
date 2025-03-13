@@ -280,14 +280,14 @@ impl Block {
         &mut self,
         name: &str,
     ) -> Result<(), Error> {
-        check_name(&name)?;
+        check_name(name)?;
 
         let bytes = name.as_bytes();
         let len = bytes.len();
 
         if len <= BLOCK_NAME_MAX_SIZE {
             self.write_u8(BLOCK_NAME_SIZE_OFFSET, len as u8)?;
-            self.write_u8_array(BLOCK_NAME_OFFSET, &bytes)?;
+            self.write_u8_array(BLOCK_NAME_OFFSET, bytes)?;
             Ok(())
         } else {
             Err(Error::InvalidNameLengthError(len))

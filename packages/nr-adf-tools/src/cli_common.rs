@@ -6,11 +6,11 @@ pub enum ArgDiskType {
     HD,
 }
 
-impl Into<DiskType> for ArgDiskType {
-    fn into(self) -> DiskType {
-        match self {
-            Self::DD => DiskType::DoubleDensity,
-            Self::HD => DiskType::HighDensity,
+impl From<ArgDiskType> for DiskType {
+    fn from(value: ArgDiskType) -> Self {
+        match value {
+            ArgDiskType::DD => Self::DoubleDensity,
+            ArgDiskType::HD => Self::HighDensity,
         }
     }
 }

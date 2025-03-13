@@ -3,7 +3,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::rc::Rc;
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 
 use nr_adf_lib::prelude::*;
 
@@ -27,8 +27,13 @@ pub fn run(args: &Args) -> Result<()> {
     let fs: AmigaDos = Rc::new(RefCell::new(disk)).try_into()?;
 
     for entry in fs.read_dir(&args.amiga_input_filepath)? {
-        if let Ok(entry) = entry {
-            println!("{}", entry.path().to_str().unwrap_or(""));
+        match entry {
+            Ok(entry) => {
+                println!("{}", entry.path().to_str().unwrap_or(""));
+            },
+            Err(err) => {
+                return Err(anyhow!("{}", err));
+            }
         }
     }
 

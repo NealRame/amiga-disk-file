@@ -4,17 +4,12 @@ use std::str::FromStr;
 use crate::errors::Error;
 
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Default)]
 #[repr(u8)]
 pub enum FilesystemType {
+    #[default]
     OFS = 0,
     FFS = 0x01,
-}
-
-impl Default for FilesystemType {
-    fn default() -> Self {
-        FilesystemType::OFS
-    }
 }
 
 impl FromStr for FilesystemType {
@@ -38,17 +33,12 @@ impl fmt::Display for FilesystemType {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Default)]
 #[repr(u8)]
 pub enum InternationalMode {
+    #[default]
     Off = 0,
     On  = 0x02,
-}
-
-impl Default for InternationalMode {
-    fn default() -> Self {
-        InternationalMode::Off
-    }
 }
 
 impl FromStr for InternationalMode {
@@ -72,17 +62,12 @@ impl fmt::Display for InternationalMode {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Default)]
 #[repr(u8)]
 pub enum CacheMode {
+    #[default]
     Off  = 0,
     On = 0x04,
-}
-
-impl Default for CacheMode {
-    fn default() -> Self {
-        CacheMode::Off
-    }
 }
 
 impl FromStr for CacheMode {

@@ -20,16 +20,15 @@ impl Default for FileType {
     fn default() -> Self { Self::File }
 }
 
-impl Into<BlockSecondaryType> for FileType {
-    fn into(self) -> BlockSecondaryType {
-        match self {
-            FileType::Dir  => BlockSecondaryType::Directory,
-            FileType::File => BlockSecondaryType::File,
-            FileType::Link => BlockSecondaryType::SoftLink,
+impl From<FileType> for BlockSecondaryType {
+    fn from(value: FileType) -> Self {
+        match value {
+            FileType::Dir  => Self::Directory,
+            FileType::File => Self::File,
+            FileType::Link => Self::SoftLink,
         }
     }
 }
-
 
 #[derive(Clone, Copy, Debug)]
 pub struct Metadata {

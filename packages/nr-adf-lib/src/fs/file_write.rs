@@ -25,7 +25,7 @@ impl File {
 
         let mut count = 0;
 
-        while buf.len() > 0 {
+        while !buf.is_empty() {
             let data_pos = self.pos%self.block_data_size;
             let data_len
                 = buf.len()

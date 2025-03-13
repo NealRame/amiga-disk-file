@@ -7,7 +7,7 @@ pub(super) fn path_split<P: AsRef<Path>>(
     path.as_ref().to_str()
         .map(|path| path.split("/"))
         .map(|strs| strs.filter_map(|s| {
-            if s.len() > 0 {
+            if !s.is_empty() {
                 Some(String::from(s))
             } else {
                 None

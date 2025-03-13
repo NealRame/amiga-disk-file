@@ -40,7 +40,7 @@ impl BootBlockReader {
             return Err(Error::CorruptedImageFile);
         }
 
-        let checksum = compute_checksum(&data);
+        let checksum = compute_checksum(data);
         let expected = u32::from_be_bytes(data[4..8].try_into().unwrap());
 
         if expected != 0
@@ -118,7 +118,7 @@ pub struct BootBlockInitializer {
 
 impl Default for BootBlockInitializer {
     fn default() -> Self {
-        return Self {
+        Self {
             boot_code: [0u8; BOOT_BLOCK_BOOT_CODE_SIZE],
             root_block_address: None,
             filesystem_type: FilesystemType::OFS,
@@ -196,7 +196,7 @@ impl BootBlockInitializer {
             &self.boot_code,
         );
 
-        let checksum = compute_checksum(&data);
+        let checksum = compute_checksum(data);
 
         data[BOOT_BLOCK_CHECKSUM_SLICE].copy_from_slice(
             &checksum.to_be_bytes(),

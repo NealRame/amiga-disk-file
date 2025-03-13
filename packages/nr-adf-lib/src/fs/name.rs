@@ -9,7 +9,7 @@ use super::InternationalMode;
 // Check if a (dir, file or volume) name is valid
 pub fn check_name(name: &str) -> Result<(), Error> {
     for c in name.bytes() {
-        if c < ' ' as u8 || c == ':' as u8 || c == '/' as u8 {
+        if c < b' ' || c == b':' || c == b'/' {
             return Err(Error::InvalidNameError)
         }
     }
@@ -18,7 +18,7 @@ pub fn check_name(name: &str) -> Result<(), Error> {
 
 // adapted from https://github.com/lclevy/ADFlib/blob/master/src/adf_dir.c#L918
 fn to_upper(c: u8) -> u8 {
-    if c >= 0x61 && c <= 0x7a {
+    if (0x61..=0x7a).contains(&c) {
         c - (0x61 - 0x41)
     } else {
         c
@@ -27,7 +27,8 @@ fn to_upper(c: u8) -> u8 {
 
 // adapted from https://github.com/lclevy/ADFlib/blob/master/src/adf_dir.c#L912
 fn to_upper_intl(c: u8) -> u8 {
-    if c >= 0x61 && c <= 0x7a || c >= 224 && c <= 254 && c != 247 {
+    if (0x61..=0x7a).contains(&c)
+    || (0xe0..=0xfe).contains(&c) && c != 0xf7 {
         c - (0x61 - 0x41)
     } else {
         c

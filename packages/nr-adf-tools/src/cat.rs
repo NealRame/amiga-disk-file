@@ -30,7 +30,7 @@ pub fn run(args: &Args) -> Result<()> {
     let fs: AmigaDos = Rc::new(RefCell::new(disk)).try_into()?;
     let data = fs.read(&args.amiga_input_filepath)?;
 
-    stdout().write(&data)?;
+    stdout().write_all(&data)?;
 
     Ok(())
 }
