@@ -228,14 +228,8 @@ impl Iterator for DirIterator {
             return Some(Err(err));
         }
 
-        if self.current_table_addr.is_none() {
-            return None;
-        }
-
-        let block = Block::new(
-            self.disk.clone(),
-            self.current_table_addr.unwrap(),
-        );
+        let block_addr = self.current_table_addr?;
+        let block = Block::new(self.disk.clone(), block_addr);
 
         let metadata = match Metadata::try_from(&block) {
             Ok(metadata) => metadata,

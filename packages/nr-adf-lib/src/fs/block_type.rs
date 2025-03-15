@@ -8,9 +8,9 @@ pub enum BlockPrimaryType {
     List   = 16,
 }
 
-impl Into<u32> for BlockPrimaryType {
-    fn into(self) -> u32 {
-        self as u32
+impl From<BlockPrimaryType> for u32 {
+    fn from(value: BlockPrimaryType) -> Self {
+        value as u32
     }
 }
 
@@ -44,9 +44,9 @@ pub enum BlockSecondaryType {
     File              = u32::MAX - 3 + 1,
 }
 
-impl Into<u32> for BlockSecondaryType {
-    fn into(self) -> u32 {
-        self as u32
+impl From<BlockSecondaryType> for u32 {
+    fn from(value: BlockSecondaryType) -> Self {
+        value as u32
     }
 }
 
