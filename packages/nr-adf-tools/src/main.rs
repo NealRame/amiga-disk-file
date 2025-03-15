@@ -6,6 +6,8 @@ mod create;
 mod format;
 mod info;
 mod ls;
+mod mkdir;
+
 
 use clap::{Parser, Subcommand};
 
@@ -21,6 +23,8 @@ pub enum Commands {
     Cat(cat::Args),
     /// List files from a given Amiga disk file
     Ls(ls::Args),
+    /// Creates directories named as operands, in the order specified
+    Mkdir(mkdir::Args),
     /// Read a file from a given Amiga disk file
     Read(read::Args),
 }
@@ -42,6 +46,7 @@ fn main() {
         Commands::Info(args) => info::run(args),
         Commands::Cat(args) => cat::run(args),
         Commands::Ls(args) => ls::run(args),
+        Commands::Mkdir(args) => mkdir::run(args),
         Commands::Read(args) => read::run(args),
     };
 

@@ -361,6 +361,7 @@ impl Block {
             BLOCK_DATA_LIST_PARENT_OFFSET,
             parent as u32,
         )?;
+        self.write_checksum(BLOCK_CHECKSUM_OFFSET)?;
 
         Ok(())
     }

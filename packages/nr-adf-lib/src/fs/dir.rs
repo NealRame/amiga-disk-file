@@ -5,6 +5,7 @@ use std::path::{
     PathBuf,
 };
 use std::rc::Rc;
+use std::time::SystemTime;
 
 use crate::block::*;
 use crate::disk::*;
@@ -157,8 +158,6 @@ impl Dir {
         ).read_block_table_address(hash_index)?;
 
         if let Some(addr) = find_in_hash_chain(disk.clone(), name, head)? {
-            check_directory(disk.clone(), addr)?;
-
             Ok((addr, false))
         } else {
             let addr = self.fs.borrow_mut().reserve_block()?;
@@ -168,10 +167,14 @@ impl Dir {
                 addr,
             ).init_header(file_type.into(), name, parent_block_addr, head)?;
 
-            Block::new(
+            let mut dir_block_header = Block::new(
                 disk.clone(),
                 parent_block_addr,
-            ).write_block_table_address(hash_index, addr)?;
+            );
+
+            dir_block_header.write_block_table_address(hash_index, addr)?;
+            dir_block_header.write_alteration_date(&SystemTime::now())?;
+            dir_block_header.write_checksum(BLOCK_CHECKSUM_OFFSET)?;
 
             Ok((addr, true))
         }
@@ -293,10 +296,9 @@ impl AmigaDos {
                 .file_name()
                 .and_then(OsStr::to_str)
                 .ok_or(Error::InvalidPathError)?;
+        let (addr, _) = parent_dir.create_entry(dir_name, FileType::Dir)?;
 
-        parent_dir.create_entry(dir_name, FileType::Dir)?;
-
-        Ok(())
+        check_directory(self.disk(), addr)
     }
 
     /// Create a directory and all of its parent components if they are missing.
@@ -308,7 +310,6 @@ impl AmigaDos {
             let disk = self.inner.borrow().disk();
 
             let boot_block = BootBlockReader::try_from_disk(disk.clone())?;
-
             let mut dir = Dir::try_with_block_address(
                 self,
                 boot_block.get_root_block_address(),
@@ -318,6 +319,7 @@ impl AmigaDos {
             for name in path {
                 let (addr, _) = dir.create_entry(&name, FileType::Dir)?;
 
+                check_directory(self.disk(), addr)?;
                 dir = Dir::try_with_block_address(
                     self,
                     addr,
