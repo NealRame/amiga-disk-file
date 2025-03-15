@@ -18,6 +18,22 @@ use super::metadata::*;
 use super::name::*;
 use super::path_split::*;
 
+fn check_directory(
+    disk: Rc<RefCell<Disk>>,
+    addr: LBAAddress,
+) -> Result<(), Error> {
+    let block = Block::new(disk.clone(), addr);
+
+    match block.read_block_secondary_type()? {
+        BlockSecondaryType::Directory |
+        BlockSecondaryType::Root => {
+            Ok(())
+        }
+        _ => {
+            Err(Error::NotADirectoryError)
+        }
+    }
+}
 
 #[derive(Clone, Debug)]
 pub struct DirEntry {
@@ -103,24 +119,6 @@ fn find_in_hash_chain(
 
     Ok(None)
 }
-
-fn check_directory(
-    disk: Rc<RefCell<Disk>>,
-    addr: LBAAddress,
-) -> Result<(), Error> {
-    let block = Block::new(disk.clone(), addr);
-
-    match block.read_block_secondary_type()? {
-        BlockSecondaryType::Directory |
-        BlockSecondaryType::Root => {
-            Ok(())
-        }
-        _ => {
-            Err(Error::InvalidFileTypeError)
-        }
-    }
-}
-
 
 impl Dir {
     pub(super) fn lookup(
