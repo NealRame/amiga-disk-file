@@ -113,3 +113,25 @@ impl Disk {
         self.disk_data.as_mut_slice()
     }
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn dd_floppy_is_ok() {
+        let disk = Disk::create(DiskType::DoubleDensity);
+
+        assert_eq!(disk.block_count(), DD_BLOCK_COUNT);
+        assert_eq!(disk.size(), DD_BLOCK_COUNT*BLOCK_SIZE);
+    }
+
+    #[test]
+    fn hd_floppy_is_ok() {
+        let disk = Disk::create(DiskType::HighDensity);
+
+        assert_eq!(disk.block_count(), HD_BLOCK_COUNT);
+        assert_eq!(disk.size(), HD_BLOCK_COUNT*BLOCK_SIZE);
+    }
+}
