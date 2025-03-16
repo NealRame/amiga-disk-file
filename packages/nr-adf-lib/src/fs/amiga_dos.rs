@@ -8,7 +8,7 @@ use crate::errors::*;
 
 use super::amiga_dos_options::*;
 use super::boot_block::*;
-use super::file::*;
+
 
 #[derive(Debug)]
 pub(super) struct AmigaDosInner {
@@ -84,45 +84,6 @@ impl AmigaDos {
 
     pub(super) fn get_filesystem_type(&self) -> Result<FilesystemType, Error> {
         self.inner.borrow().get_filesystem_type()
-    }
-}
-
-impl AmigaDos {
-    /// Reads the entire contents of a file into a bytes vector.
-    pub fn read<P: AsRef<Path>>(
-        &self,
-        path: P,
-    ) -> Result<Vec<u8>, Error> {
-        let mut buf = [0; BLOCK_SIZE];
-
-        let mut output = Vec::new();
-        let mut input = File::options().read(true).open(
-            self,
-            path.as_ref(),
-        )?;
-
-        loop {
-            let count = input.read(&mut buf)?;
-
-            if count > 0 {
-                output.extend_from_slice(&buf[..count]);
-            } else {
-                break
-            }
-        }
-
-        Ok(output)
-    }
-
-    /// Writes a slice as the entire contents of a file.
-    /// This function will create a file if it does not exist, and will
-    /// entirely replace its contents if it does.
-    pub fn write<P: AsRef<Path>, C: AsRef<[u8]>>(
-        &self,
-        _: P,
-        _: C
-    ) -> Result<(), Error> {
-        unimplemented!()
     }
 }
 
