@@ -87,14 +87,6 @@ impl Disk {
         Err(Error::DiskInvalidSizeError(disk_size))
     }
 
-    // pub fn block(
-    //     &self,
-    //     addr: LBAAddress,
-    // ) -> Result<&[u8], Error> {
-    //     let r = self.block_bounds(addr, 1)?;
-    //     Ok(&self.disk_data[r])
-    // }
-
     pub fn blocks(
         &self,
         addr: LBAAddress,
@@ -103,14 +95,6 @@ impl Disk {
         let r = self.block_bounds(addr, count)?;
         Ok(&self.disk_data[r])
     }
-
-    // pub fn block_mut(
-    //     &mut self,
-    //     addr: LBAAddress,
-    // ) -> Result<&mut [u8], Error> {
-    //     let r = self.block_bounds(addr, 1)?;
-    //     Ok(&mut self.disk_data[r])
-    // }
 
     pub fn blocks_mut(
         &mut self,
@@ -128,24 +112,4 @@ impl Disk {
     pub fn data_mut(&mut self) -> &mut [u8] {
         self.disk_data.as_mut_slice()
     }
-
-    // pub fn read<const N: usize>(
-    //     &self,
-    //     addr: LBAAddress,
-    //     data: &mut [u8; N],
-    // ) -> Result<(), Error> {
-    //     let count = if N%BLOCK_SIZE == 0 {
-    //         N/BLOCK_SIZE
-    //     } else {
-    //         N/BLOCK_SIZE + 1
-    //     };
-
-    //     for i in 0..count {
-    //         data[i*BLOCK_SIZE..(i + 1)*BLOCK_SIZE].copy_from_slice(
-    //             self.block(addr + i)?
-    //         );
-    //     }
-
-    //     Ok(())
-    // }
 }
