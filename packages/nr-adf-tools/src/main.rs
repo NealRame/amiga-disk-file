@@ -1,12 +1,13 @@
 mod cli_common;
 
 mod cat;
-mod read;
 mod create;
 mod format;
 mod info;
 mod ls;
 mod mkdir;
+mod read;
+mod write;
 
 
 use clap::{Parser, Subcommand};
@@ -27,6 +28,8 @@ pub enum Commands {
     Mkdir(mkdir::Args),
     /// Read a file from a given Amiga disk file
     Read(read::Args),
+    /// Write a file to a given Amiga disk location
+    Write(write::Args),
 }
 
 #[derive(Parser)]
@@ -48,6 +51,7 @@ fn main() {
         Commands::Ls(args) => ls::run(args),
         Commands::Mkdir(args) => mkdir::run(args),
         Commands::Read(args) => read::run(args),
+        Commands::Write(args) => write::run(args),
     };
 
     if let Err(err) = res {
