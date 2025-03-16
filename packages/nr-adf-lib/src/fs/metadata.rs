@@ -127,4 +127,17 @@ impl AmigaDos {
         let header_block_address = self.lookup(path.as_ref())?;
         self.inner.borrow().metadata(header_block_address)
     }
+
+    /// Returns Ok(true) if the path points at an existing entity.
+    pub fn exists<P: AsRef<Path>>(
+        &self,
+        path: P,
+    ) -> Result<bool, Error> {
+        match self.metadata(path) {
+            Err(Error::NotFoundError) => Ok(false),
+            Err(err) => Err(err),
+            _ => Ok(true),
+        }
+    }
+
 }
