@@ -52,5 +52,7 @@ pub fn run(args: &Args) -> Result<()> {
         fs.write(&args.amiga_output_filepath, data)?;
     }
 
+    fs.dump(&args.amiga_disk_filepath)?;
+
     Ok(())
 }

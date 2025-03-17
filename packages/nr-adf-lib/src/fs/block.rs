@@ -294,6 +294,16 @@ impl Block {
         }
     }
 
+    pub fn write_file_size(
+        &mut self,
+        file_size: usize,
+    ) -> Result<(), Error> {
+        self.write_u32(
+            BLOCK_FILE_SIZE,
+            file_size as u32,
+        )
+    }
+
     pub fn write_checksum(
         &mut self,
         offset: usize,
@@ -307,17 +317,24 @@ impl Block {
         self.write_u32(offset, chksum)
     }
 
-    pub fn write_block_table_address(
+    fn write_block_table_address(
+        &mut self,
+        index: usize,
+        address: LBAAddress,
+    ) -> Result<(), Error> {
+        self.write_u32(
+            BLOCK_TABLE_OFFSET + 4*index,
+            address as u32,
+        )
+    }
+
+    pub fn write_hash_table_block_address(
         &mut self,
         index: usize,
         address: LBAAddress,
     ) -> Result<(), Error> {
         if index < BLOCK_TABLE_SIZE {
-            self.write_u32(
-                BLOCK_TABLE_OFFSET + 4*index,
-                address as u32,
-            )?;
-            Ok(())
+            self.write_block_table_address(index, address)
         } else {
             Err(Error::InvalidDataBlockIndexError(index))
         }
@@ -328,6 +345,21 @@ impl Block {
         address: LBAAddress,
     ) -> Result<(), Error> {
         self.write_u32(BLOCK_HASH_CHAIN_NEXT_OFFSET, address as u32)
+    }
+
+    pub fn write_data_list_block_address(
+        &mut self,
+        index: usize,
+        address: LBAAddress,
+    ) -> Result<(), Error> {
+        if index < BLOCK_TABLE_SIZE {
+            self.write_block_table_address(
+                BLOCK_TABLE_SIZE - index - 1,
+                address,
+            )
+        } else {
+            Err(Error::InvalidDataBlockIndexError(index))
+        }
     }
 
     pub fn write_data_list_extension_address(
@@ -343,23 +375,18 @@ impl Block {
         &mut self,
         secondary_type: BlockSecondaryType,
         name: &str,
-        parent: LBAAddress,
-        chain_next: Option<LBAAddress>,
+        // parent: LBAAddress,
+        // chain_next: Option<LBAAddress>,
     ) -> Result<(), Error> {
         self.clear()?;
 
         self.write_block_primary_type(BlockPrimaryType::Header)?;
         self.write_block_secondary_type(secondary_type)?;
         self.write_alteration_date(&SystemTime::now())?;
-        self.write_hash_chain_next_address(chain_next.unwrap_or(0))?;
         self.write_name(name)?;
         self.write_u32(
             BLOCK_DATA_LIST_HEADER_KEY_OFFSET,
             self.address as u32,
-        )?;
-        self.write_u32(
-            BLOCK_DATA_LIST_PARENT_OFFSET,
-            parent as u32,
         )?;
         self.write_checksum(BLOCK_CHECKSUM_OFFSET)?;
 

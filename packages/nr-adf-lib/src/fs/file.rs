@@ -198,7 +198,7 @@ impl File {
             entry.extension_block_addr,
         );
 
-        ext_block.write_block_table_address(entry.extension_block_index, 0)?;
+        ext_block.write_data_list_block_address(entry.extension_block_index, 0)?;
         ext_block.write_u32(
             BLOCK_DATA_LIST_HIGH_SEQ_OFFSET,
             entry.extension_block_index as u32,
@@ -269,7 +269,7 @@ impl File {
             extension_block_addr,
         );
 
-        ext_block.write_block_table_address(extension_block_index, data_block_address)?;
+        ext_block.write_data_list_block_address(extension_block_index, data_block_address)?;
         ext_block.write_u32(
             BLOCK_DATA_LIST_PARENT_OFFSET,
             (extension_block_index + 1) as u32,
@@ -298,7 +298,7 @@ impl File {
             self.header_block_addr,
         );
 
-        ext_block.write_block_table_address(0, data_block_address)?;
+        ext_block.write_data_list_block_address(0, data_block_address)?;
         ext_block.write_u32(BLOCK_DATA_LIST_PARENT_OFFSET, 1u32)?;
 
         let entry = FileDataBlockListEntry {

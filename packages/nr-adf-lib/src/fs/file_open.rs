@@ -67,7 +67,7 @@ impl OpenOptions {
         &mut self,
         create: bool,
     ) -> &mut Self {
-        if self.create {
+        if create {
             self.create = create;
         } else {
             self.create = false;

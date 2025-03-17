@@ -160,23 +160,31 @@ impl Dir {
         if let Some(addr) = find_in_hash_chain(disk.clone(), name, head)? {
             Ok((addr, false))
         } else {
-            let addr = self.fs.borrow_mut().reserve_block()?;
+            let entry_block_addr = self.fs.borrow_mut().reserve_block()?;
 
-            Block::new(
+            let mut entry_block = Block::new(
                 disk.clone(),
-                addr,
-            ).init_header(file_type.into(), name, parent_block_addr, head)?;
+                entry_block_addr,
+            );
+            entry_block.init_header(file_type.into(), name)?;
+            entry_block.write_hash_chain_next_address(head.unwrap_or(0))?;
+            entry_block.write_u32(
+                BLOCK_DATA_LIST_PARENT_OFFSET,
+                parent_block_addr as u32,
+            )?;
 
-            let mut dir_block_header = Block::new(
+            let mut parent_block = Block::new(
                 disk.clone(),
                 parent_block_addr,
             );
+            parent_block.write_alteration_date(&SystemTime::now())?;
+            parent_block.write_hash_table_block_address(
+                hash_index,
+                entry_block_addr,
+            )?;
+            parent_block.write_checksum(BLOCK_CHECKSUM_OFFSET)?;
 
-            dir_block_header.write_block_table_address(hash_index, addr)?;
-            dir_block_header.write_alteration_date(&SystemTime::now())?;
-            dir_block_header.write_checksum(BLOCK_CHECKSUM_OFFSET)?;
-
-            Ok((addr, true))
+            Ok((entry_block_addr, true))
         }
     }
 }
