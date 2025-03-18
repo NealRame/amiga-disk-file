@@ -306,15 +306,14 @@ impl Block {
 
     pub fn write_checksum(
         &mut self,
-        offset: usize,
     ) -> Result<(), Error> {
         let chksum = {
             let disk = self.disk.borrow();
             let disk_data = disk.blocks(self.address, 1)?;
 
-            compute_checksum(disk_data, offset)
+            compute_checksum(disk_data, BLOCK_CHECKSUM_OFFSET)
         };
-        self.write_u32(offset, chksum)
+        self.write_u32(BLOCK_CHECKSUM_OFFSET, chksum)
     }
 
     fn write_block_table_address(
@@ -375,8 +374,6 @@ impl Block {
         &mut self,
         secondary_type: BlockSecondaryType,
         name: &str,
-        // parent: LBAAddress,
-        // chain_next: Option<LBAAddress>,
     ) -> Result<(), Error> {
         self.clear()?;
 
@@ -388,7 +385,8 @@ impl Block {
             BLOCK_DATA_LIST_HEADER_KEY_OFFSET,
             self.address as u32,
         )?;
-        self.write_checksum(BLOCK_CHECKSUM_OFFSET)?;
+
+        self.write_checksum()?;
 
         Ok(())
     }

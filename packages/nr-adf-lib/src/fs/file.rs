@@ -85,12 +85,18 @@ impl ops::BitOr<FileMode> for FileModeMask {
     }
 }
 
+pub(super) fn test_file_mode(
+    mode: FileMode,
+    mode_mask: FileModeMask,
+) -> bool {
+    (mode_mask & mode) != 0
+}
 
 pub(super) fn check_file_mode(
     mode: FileMode,
     mode_mask: FileModeMask,
 ) -> Result<(), Error> {
-    if (mode_mask & mode as usize) == 0 {
+    if !test_file_mode(mode, mode_mask) {
         Err(Error::BadFileDescriptor)
     } else {
         Ok(())
@@ -184,7 +190,7 @@ impl File {
             );
 
             ext_block.write_data_list_extension_address(0)?;
-            ext_block.write_checksum(BLOCK_CHECKSUM_OFFSET)?;
+            ext_block.write_checksum()?;
         }
         Ok(())
     }
@@ -209,7 +215,7 @@ impl File {
         if entry.extension_block_index == 0 {
             self.release_extension_block(entry)?;
         } else {
-            ext_block.write_checksum(BLOCK_CHECKSUM_OFFSET)?;
+            ext_block.write_checksum()?;
         }
 
         self.size -= self.size%self.block_data_size;
@@ -230,7 +236,7 @@ impl File {
         let mut last_ext_block = Block::new(disk.clone(), entry.data_block_address);
 
         last_ext_block.write_data_list_extension_address(extension_block_addr)?;
-        last_ext_block.write_checksum(BLOCK_CHECKSUM_OFFSET)?;
+        last_ext_block.write_checksum()?;
 
         // Initialize the newly allocated file extension block.
         let mut next_ext_block = Block::new(disk.clone(), extension_block_addr);

@@ -83,7 +83,7 @@ impl RootBlockInitializer {
         block.write_u32(ROOT_BLOCK_BITMAP_FLAG_OFFSET, 0xffffffff)?;
         block.write_u32(ROOT_BLOCK_EXTENSION_OFFSET, 0)?;
 
-        block.write_checksum(BLOCK_CHECKSUM_OFFSET)?;
+        block.write_checksum()?;
 
         Ok(())
     }

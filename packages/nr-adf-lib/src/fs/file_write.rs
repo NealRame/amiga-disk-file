@@ -1,4 +1,5 @@
 use std::path::Path;
+use std::time::SystemTime;
 
 use crate::block::*;
 use crate::disk::*;
@@ -9,6 +10,22 @@ use super::file::*;
 
 
 impl File {
+    fn sync_all(
+        &mut self,
+    ) -> Result<(), Error> {
+        if test_file_mode(FileMode::Write, self.mode) {
+            let mut block = Block::new(
+                self.fs.borrow().disk(),
+                self.header_block_addr,
+            );
+
+            block.write_file_size(self.size)?;
+            block.write_alteration_date(&SystemTime::now())?;
+            block.write_checksum()?;
+        }
+        Ok(())
+    }
+
     fn write_data(
         &mut self,
         buf: &[u8],
@@ -19,16 +36,6 @@ impl File {
             self.fs.borrow().disk(),
             data_list_entry.data_block_address,
         ).write_u8_array(self.block_data_offset + data_pos, buf)
-    }
-
-    fn write_size(
-        &mut self,
-    ) -> Result<(), Error> {
-        check_file_mode(FileMode::Write, self.mode)?;
-        Block::new(
-            self.fs.borrow().disk(),
-            self.header_block_addr,
-        ).write_file_size(self.size)
     }
 
     pub fn write(
@@ -62,7 +69,7 @@ impl File {
             self.size = self.pos.max(self.size);
         }
 
-        self.write_size()?;
+        self.sync_all()?;
 
         Ok(count)
     }

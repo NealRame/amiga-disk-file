@@ -182,7 +182,7 @@ impl Dir {
                 hash_index,
                 entry_block_addr,
             )?;
-            parent_block.write_checksum(BLOCK_CHECKSUM_OFFSET)?;
+            parent_block.write_checksum()?;
 
             Ok((entry_block_addr, true))
         }
