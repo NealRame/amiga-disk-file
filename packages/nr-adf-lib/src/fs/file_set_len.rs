@@ -1,10 +1,50 @@
 use crate::block::*;
 use crate::errors::*;
 
+use super::amiga_dos_options::*;
+use super::constants::*;
 use super::file::*;
 
 
 impl File {
+    fn sync_block(
+        &mut self,
+        block: &mut Block,
+        block_size: usize,
+    ) -> Result<(), Error> {
+        if let FilesystemType::OFS = self.fs.borrow().get_filesystem_type()? {
+            block.write_u32(
+                BLOCK_DATA_OFS_SIZE_OFFSET,
+                block_size as u32,
+            )?;
+            block.write_checksum()?;
+        }
+        Ok(())
+    }
+
+    fn grow_block(
+        &mut self,
+        entry: &FileDataBlockListEntry,
+        new_size: usize,
+    ) -> Result<(), Error> {
+        let mut block = Block::new(
+            self.fs.borrow().disk(),
+            entry.data_block_address,
+        );
+
+        let block_offset = self.size%self.block_data_size;
+        let block_size = usize::min(
+            new_size - self.size/self.block_data_size,
+            self.block_data_size,
+        );
+
+        block.fill(0, block_offset, block_offset + block_size)?;
+
+        self.sync_block(&mut block, block_size)?;
+
+        Ok(())
+    }
+
     pub fn grow(
         &mut self,
         new_size: usize,
@@ -12,11 +52,7 @@ impl File {
         assert!(new_size > self.size, "internal error");
 
         if let Some(entry) = self.get_data_block_list_entry(self.size) {
-            Block::new(
-                self.fs.borrow().disk(),
-                entry.data_block_address,
-            ).fill(0, self.size%self.block_data_size, self.block_data_size)?;
-
+            self.grow_block(&entry, new_size)?;
             self.size = usize::min(
                 (self.size/self.block_data_size + 1)*self.block_data_size,
                 new_size,
@@ -26,11 +62,7 @@ impl File {
         while self.size < new_size {
             let entry = self.push_data_block_list_entry()?;
 
-            Block::new(
-                self.fs.borrow().disk(),
-                entry.data_block_address,
-            ).clear()?;
-
+            self.grow_block(&entry, new_size)?;
             self.size = usize::min(
                 self.size + self.block_data_size,
                 new_size,
@@ -52,15 +84,24 @@ impl File {
             self.pop_data_block_list_entry()?;
         }
 
-        if new_size%self.block_data_size > 0 {
-            self.size = new_size;
-            self.pos = usize::min(
-                self.pos,
-                self.size,
-            );
-        } else {
-            self.pop_data_block_list_entry()?;
+        if let Some(entry) = self.get_data_block_list_entry(new_size) {
+            let block_size = new_size%self.block_data_size;
+            if block_size > 0 {
+                let mut block = Block::new(
+                    self.fs.borrow().disk(),
+                    entry.data_block_address,
+                );
+                self.sync_block(&mut block, block_size)?;
+            } else {
+                self.pop_data_block_list_entry()?;
+            }
         }
+
+        self.size = new_size;
+        self.pos = usize::min(
+            self.pos,
+            self.size,
+        );
 
         Ok(())
     }

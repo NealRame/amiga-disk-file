@@ -110,7 +110,7 @@ pub(super) struct FileDataBlockListEntry {
     // Index of the data block address in the extension block
     pub(super) extension_block_index: usize,
     // Address of the extension block
-    pub(super) extension_block_addr: LBAAddress,
+    pub(super) extension_block_address: LBAAddress,
 }
 
 impl FileDataBlockListEntry {
@@ -128,7 +128,7 @@ impl FileDataBlockListEntry {
         if let Some(data_block_address) = data_block_address {
             Ok(Some(Self {
                 data_block_address,
-                extension_block_addr,
+                extension_block_address: extension_block_addr,
                 extension_block_index,
             }))
         } else {
@@ -177,40 +177,72 @@ pub struct File {
 }
 
 impl File {
-    fn release_extension_block(
-        &mut self,
-        entry: &FileDataBlockListEntry,
-    ) -> Result<(), Error> {
-        if let Some(last_entry) = self.block_data_list.last() {
-            self.fs.borrow_mut().free_block(entry.extension_block_addr)?;
-
-            let mut ext_block = Block::new(
-                self.fs.borrow().disk(),
-                last_entry.extension_block_addr,
-            );
-
-            ext_block.write_data_list_extension_address(0)?;
-            ext_block.write_checksum()?;
-        }
-        Ok(())
-    }
-
-    fn release_data_block(
-        &mut self,
-        entry: &FileDataBlockListEntry,
+    fn update_extension_block_next(
+        &self,
+        ext_block_addr: LBAAddress,
+        next_ext_block_addr: LBAAddress,
     ) -> Result<(), Error> {
         let mut ext_block = Block::new(
             self.fs.borrow().disk(),
-            entry.extension_block_addr,
+            ext_block_addr,
         );
 
-        ext_block.write_data_list_block_address(entry.extension_block_index, 0)?;
+        ext_block.write_u32(
+            BLOCK_DATA_LIST_EXTENSION_OFFSET,
+            next_ext_block_addr as u32,
+        )?;
+        ext_block.write_checksum()?;
+
+        Ok(())
+    }
+
+    fn set_extension_block_data_block(
+        &mut self,
+        entry: FileDataBlockListEntry,
+    ) -> Result<(), Error> {
+        if entry.extension_block_index >= BLOCK_TABLE_SIZE {
+            return Err(Error::InvalidDataBlockIndexError(entry.extension_block_index));
+        }
+
+        let mut ext_block = Block::new(
+            self.fs.borrow().disk(),
+            entry.extension_block_address,
+        );
+
+        ext_block.write_block_table_address(
+            BLOCK_TABLE_SIZE - entry.extension_block_index - 1,
+            entry.data_block_address,
+        )?;
+        ext_block.write_u32(
+            BLOCK_DATA_LIST_HIGH_SEQ_OFFSET,
+            entry.extension_block_index as u32 + 1,
+        )?;
+        ext_block.write_checksum()?;
+
+        Ok(())
+    }
+
+    fn unset_extension_block_data_block(
+        &mut self,
+        entry: FileDataBlockListEntry,
+    ) -> Result<(), Error> {
+        if entry.extension_block_index >= BLOCK_TABLE_SIZE {
+            return Err(Error::InvalidDataBlockIndexError(entry.extension_block_index));
+        }
+
+        let mut ext_block = Block::new(
+            self.fs.borrow().disk(),
+            entry.extension_block_address,
+        );
+
+        ext_block.write_block_table_address(
+            BLOCK_TABLE_SIZE - entry.extension_block_index - 1,
+            0,
+        )?;
         ext_block.write_u32(
             BLOCK_DATA_LIST_HIGH_SEQ_OFFSET,
             entry.extension_block_index as u32,
         )?;
-
-        self.fs.borrow_mut().free_block(entry.data_block_address)?;
 
         if entry.extension_block_index == 0 {
             self.release_extension_block(entry)?;
@@ -218,102 +250,133 @@ impl File {
             ext_block.write_checksum()?;
         }
 
+        Ok(())
+    }
+
+    fn release_extension_block(
+        &mut self,
+        entry: FileDataBlockListEntry,
+    ) -> Result<(), Error> {
+        if let Some(last_entry) = self.block_data_list.last() {
+            self.fs.borrow_mut().free_block(entry.extension_block_address)?;
+            self.update_extension_block_next(
+                last_entry.extension_block_address,
+                0,
+            )?;
+        }
+        Ok(())
+    }
+
+    fn release_data_block(
+        &mut self,
+        entry: FileDataBlockListEntry,
+    ) -> Result<(), Error> {
+        self.fs.borrow_mut().free_block(entry.data_block_address)?;
+        self.unset_extension_block_data_block(entry)?;
+
         self.size -= self.size%self.block_data_size;
         self.pos = self.pos.min(self.size);
 
         Ok(())
     }
 
-    fn alloc_extension_block(
-        &mut self,
-        entry: &FileDataBlockListEntry,
-    ) -> Result<LBAAddress, Error> {
-        let disk = self.fs.borrow().disk();
-        let extension_block_addr = self.fs.borrow_mut().reserve_block()?;
+    fn init_extension_block(
+        &self,
+        ext_block_addr: LBAAddress,
+    ) -> Result<(), Error> {
+        let mut ext_block = Block::new(
+            self.fs.borrow().disk(),
+            ext_block_addr,
+        );
 
-        // Update the last file extension block with the address of the newly
-        // allocated file extension block address.
-        let mut last_ext_block = Block::new(disk.clone(), entry.data_block_address);
-
-        last_ext_block.write_data_list_extension_address(extension_block_addr)?;
-        last_ext_block.write_checksum()?;
-
-        // Initialize the newly allocated file extension block.
-        let mut next_ext_block = Block::new(disk.clone(), extension_block_addr);
-
-        next_ext_block.clear()?;
-        next_ext_block.write_block_primary_type(BlockPrimaryType::List)?;
-        next_ext_block.write_block_secondary_type(BlockSecondaryType::File)?;
-        next_ext_block.write_u32(
+        ext_block.clear()?;
+        ext_block.write_block_primary_type(BlockPrimaryType::List)?;
+        ext_block.write_block_secondary_type(BlockSecondaryType::File)?;
+        ext_block.write_u32(
             BLOCK_DATA_LIST_HEADER_KEY_OFFSET,
-            extension_block_addr as u32,
+            ext_block_addr as u32,
         )?;
-        next_ext_block.write_u32(
+        ext_block.write_u32(
             BLOCK_DATA_LIST_PARENT_OFFSET,
             self.header_block_addr as u32,
         )?;
+        ext_block.write_checksum()?;
 
-        Ok(extension_block_addr)
+        Ok(())
+    }
+
+    fn init_data_block(
+        &self,
+        block_addr: LBAAddress,
+    ) -> Result<(), Error> {
+        let mut block = Block::new(
+            self.fs.borrow().disk(),
+            block_addr,
+        );
+
+        block.clear()?;
+
+        if let FilesystemType::OFS = self.fs.borrow().get_filesystem_type()? {
+            block.write_block_primary_type(BlockPrimaryType::Data)?;
+            block.write_u32(
+                BLOCK_DATA_OFS_HEADER_KEY_OFFSET,
+                self.header_block_addr as u32,
+            )?;
+            block.write_u32(
+                BLOCK_DATA_OFS_SEQ_NUM_OFFSET,
+                self.block_data_list.len() as u32,
+            )?;
+            block.write_checksum()?;
+        }
+
+        Ok(())
+    }
+
+    fn alloc_extension_block(
+        &mut self,
+    ) -> Result<(LBAAddress, usize), Error> {
+        match self.block_data_list.last().copied() {
+            None => Ok((self.header_block_addr, 0)),
+            Some(entry) => {
+                if entry.extension_block_index < BLOCK_DATA_LIST_SIZE - 1 {
+                    Ok((
+                        entry.extension_block_address,
+                        entry.extension_block_index + 1,
+                    ))
+                } else {
+                    let ext_block_addr = self.fs.borrow_mut().reserve_block()?;
+
+                    self.init_extension_block(ext_block_addr)?;
+                    self.update_extension_block_next(
+                        entry.extension_block_address,
+                        ext_block_addr
+                    )?;
+
+                    Ok((ext_block_addr, 0))
+                }
+            }
+        }
     }
 
     fn alloc_data_block(
         &mut self,
-        entry: &FileDataBlockListEntry,
     ) -> Result<FileDataBlockListEntry, Error> {
-        let data_block_address = self.fs.borrow_mut().reserve_block()?;
         let (
-            extension_block_addr,
+            extension_block_address,
             extension_block_index,
-        ) = if entry.extension_block_index < BLOCK_DATA_LIST_SIZE {
-            (entry.extension_block_addr, entry.extension_block_index + 1)
-        } else {
-            (self.alloc_extension_block(entry)?, 0)
-        };
+        ) = self.alloc_extension_block()?;
 
-        let mut ext_block = Block::new(
-            self.fs.borrow().disk(),
-            extension_block_addr,
-        );
-
-        ext_block.write_data_list_block_address(extension_block_index, data_block_address)?;
-        ext_block.write_u32(
-            BLOCK_DATA_LIST_PARENT_OFFSET,
-            (extension_block_index + 1) as u32,
-        )?;
-
-        let entry = FileDataBlockListEntry {
-            data_block_address,
-            extension_block_addr,
-            extension_block_index,
-        };
-
-        self.block_data_list.push(entry);
-
-        Ok(entry)
-    }
-
-    fn alloc_first_data_block(
-        &mut self,
-    ) -> Result<FileDataBlockListEntry, Error> {
         let data_block_address = self.fs.borrow_mut().reserve_block()?;
-        let extension_block_addr = self.header_block_addr;
-        let extension_block_index = 0;
 
-        let mut ext_block = Block::new(
-            self.fs.borrow().disk(),
-            self.header_block_addr,
-        );
-
-        ext_block.write_data_list_block_address(0, data_block_address)?;
-        ext_block.write_u32(BLOCK_DATA_LIST_PARENT_OFFSET, 1u32)?;
+        self.init_data_block(data_block_address)?;
 
         let entry = FileDataBlockListEntry {
             data_block_address,
-            extension_block_addr,
+            extension_block_address,
             extension_block_index,
         };
 
-        self.block_data_list.push(entry);
+        self.set_extension_block_data_block(entry)?;
 
         Ok(entry)
     }
@@ -322,7 +385,19 @@ impl File {
         &mut self,
     ) -> Result<(), Error> {
         if let Some(entry) = self.block_data_list.pop() {
-            self.release_data_block(&entry)?
+            self.release_data_block(entry)?;
+
+            if let FilesystemType::OFS = self.fs.borrow().get_filesystem_type()? {
+                if let Some(prev_entry) = self.block_data_list.last() {
+                    let mut block = Block::new(
+                        self.fs.borrow().disk(),
+                        prev_entry.data_block_address,
+                    );
+
+                    block.write_u32(BLOCK_DATA_OFS_NEXT_DATA_OFFSET, 0)?;
+                    block.write_checksum()?;
+                }
+            }
         }
         Ok(())
     }
@@ -330,14 +405,25 @@ impl File {
     pub(super) fn push_data_block_list_entry(
         &mut self,
     ) -> Result<FileDataBlockListEntry, Error> {
-        match self.block_data_list.last().copied() {
-            Some(entry) => {
-                self.alloc_data_block(&entry)
-            },
-            None => {
-                self.alloc_first_data_block()
-            },
+        let entry = self.alloc_data_block()?;
+
+        if let FilesystemType::OFS = self.fs.borrow().get_filesystem_type()? {
+            if let Some(prev_entry) = self.block_data_list.last() {
+                let mut block = Block::new(
+                    self.fs.borrow().disk(),
+                    prev_entry.data_block_address,
+                );
+
+                block.write_u32(
+                    BLOCK_DATA_OFS_NEXT_DATA_OFFSET,
+                    entry.data_block_address as u32,
+                )?;
+                block.write_checksum()?;
+            }
         }
+
+        self.block_data_list.push(entry);
+        Ok(entry)
     }
 
     pub(super) fn get_data_block_list_entry(

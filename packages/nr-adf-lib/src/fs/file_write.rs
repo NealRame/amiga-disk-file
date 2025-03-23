@@ -100,3 +100,60 @@ impl AmigaDos {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::rc::Rc;
+    use std::cell::RefCell;
+
+    use crate::fs::*;
+    use super::*;
+
+    fn write_ofs(count: usize) {
+        let data_in = vec![42u8; count];
+
+        let disk = Disk::create(DiskType::DoubleDensity);
+        let fs = AmigaDosFormater::default()
+            .with_cache_mode(CacheMode::Off)
+            .with_filesystem_type(FilesystemType::OFS)
+            .with_international_mode(InternationalMode::Off)
+            .format(Rc::new(RefCell::new(disk)), "TEST")
+            .unwrap();
+
+        fs.write("/data", &data_in).unwrap();
+
+        let data_out = fs.read("/data").unwrap();
+
+        assert_eq!(&data_in, &data_out);
+    }
+
+    #[test]
+    fn write_ofs_less_than_488_bytes() {
+        write_ofs(488)
+    }
+
+    #[test]
+    fn write_ofs_more_than_488_bytes() {
+        write_ofs(489)
+    }
+
+    #[test]
+    fn write_ofs_less_than_15128_bytes() {
+        write_ofs(15128)
+    }
+
+    #[test]
+    fn write_ofs_more_than_15129_bytes() {
+        write_ofs(15129)
+    }
+
+    #[test]
+    fn write_ofs_less_than_35136_bytes() {
+        write_ofs(35136)
+    }
+
+    #[test]
+    fn write_ofs_more_than_35136_bytes() {
+        write_ofs(35137)
+    }
+}

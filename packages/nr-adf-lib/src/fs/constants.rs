@@ -28,14 +28,13 @@ pub const BLOCK_DATA_LIST_EXTENSION_OFFSET  : usize = BLOCK_SIZE - 0x08;
 pub const BLOCK_DATA_FFS_OFFSET             : usize = 0;
 pub const BLOCK_DATA_FFS_SIZE               : usize = BLOCK_SIZE;
 
-// pub const BLOCK_DATA_OFS_HEADER_KEY_OFFSET  : usize = 0x04;
-// pub const BLOCK_DATA_OFS_SEQ_OFFSET         : usize = 0x08;
-// pub const BLOCK_DATA_OFS_SIZE_OFFSET        : usize = 0x0c;
-// pub const BLOCK_DATA_OFS_NEXT_OFFSET        : usize = 0x10;
-// pub const BLOCK_DATA_OFS_CHECKSUM_OFFSET    : usize = 0x14;
 pub const BLOCK_DATA_OFS_OFFSET             : usize = 0x18;
 pub const BLOCK_DATA_OFS_SIZE               : usize = BLOCK_SIZE - 0x18;
 
+pub const BLOCK_DATA_OFS_HEADER_KEY_OFFSET  : usize = 0x04;
+pub const BLOCK_DATA_OFS_SEQ_NUM_OFFSET     : usize = 0x08;
+pub const BLOCK_DATA_OFS_SIZE_OFFSET        : usize = 0x0c;
+pub const BLOCK_DATA_OFS_NEXT_DATA_OFFSET   : usize = 0x10;
 
 pub const BLOCK_TABLE_OFFSET                : usize = 0x18;
 pub const BLOCK_TABLE_SIZE                  : usize = BLOCK_SIZE/4 - 56;

@@ -121,12 +121,14 @@ fn find_free_block_address_in_bitmap_block(
     for chunk in block_bitmap.chunks(4).skip(1) {
         let mut word = u32::from_be_bytes(chunk.try_into().unwrap());
 
-        while word != 0 {
-            if word & 0x01 != 0 {
-                return Some(block_address_offset);
+        if word == 0 {
+            block_address_offset += 32;
+        } else {
+            while word & 0x01 == 0 {
+                block_address_offset += 1;
+                word >>= 1;
             }
-            block_address_offset += 1;
-            word >>= 1;
+            return Some(block_address_offset);
         }
     }
     None

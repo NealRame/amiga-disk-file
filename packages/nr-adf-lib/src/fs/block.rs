@@ -5,12 +5,12 @@ use crate::disk::*;
 use crate::block::Block;
 use crate::errors::Error;
 
+use super::amiga_dos::*;
 use super::block_type::*;
 use super::checksum::*;
 use super::constants::*;
 use super::datetime::*;
 use super::name::*;
-use super::AmigaDos;
 
 
 impl Block {
@@ -316,7 +316,7 @@ impl Block {
         self.write_u32(BLOCK_CHECKSUM_OFFSET, chksum)
     }
 
-    fn write_block_table_address(
+    pub fn write_block_table_address(
         &mut self,
         index: usize,
         address: LBAAddress,
@@ -344,28 +344,6 @@ impl Block {
         address: LBAAddress,
     ) -> Result<(), Error> {
         self.write_u32(BLOCK_HASH_CHAIN_NEXT_OFFSET, address as u32)
-    }
-
-    pub fn write_data_list_block_address(
-        &mut self,
-        index: usize,
-        address: LBAAddress,
-    ) -> Result<(), Error> {
-        if index < BLOCK_TABLE_SIZE {
-            self.write_block_table_address(
-                BLOCK_TABLE_SIZE - index - 1,
-                address,
-            )
-        } else {
-            Err(Error::InvalidDataBlockIndexError(index))
-        }
-    }
-
-    pub fn write_data_list_extension_address(
-        &mut self,
-        address: LBAAddress,
-    ) -> Result<(), Error> {
-        self.write_u32(BLOCK_DATA_LIST_EXTENSION_OFFSET, address as u32)
     }
 }
 
