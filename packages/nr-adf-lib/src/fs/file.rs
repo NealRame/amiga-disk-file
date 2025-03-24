@@ -324,7 +324,7 @@ impl File {
             )?;
             block.write_u32(
                 BLOCK_DATA_OFS_SEQ_NUM_OFFSET,
-                self.block_data_list.len() as u32,
+                self.block_data_list.len() as u32 + 1,
             )?;
             block.write_checksum()?;
         }
@@ -407,8 +407,8 @@ impl File {
     ) -> Result<FileDataBlockListEntry, Error> {
         let entry = self.alloc_data_block()?;
 
-        if let FilesystemType::OFS = self.fs.borrow().get_filesystem_type()? {
-            if let Some(prev_entry) = self.block_data_list.last() {
+        if let Some(prev_entry) = self.block_data_list.last() {
+            if let FilesystemType::OFS = self.fs.borrow().get_filesystem_type()? {
                 let mut block = Block::new(
                     self.fs.borrow().disk(),
                     prev_entry.data_block_address,
@@ -420,6 +420,17 @@ impl File {
                 )?;
                 block.write_checksum()?;
             }
+        } else {
+            let mut block = Block::new(
+                self.fs.borrow().disk(),
+                self.header_block_addr,
+            );
+
+            block.write_u32(
+                BLOCK_FIRST_DATA_OFFSET,
+                entry.data_block_address as u32,
+            )?;
+            block.write_checksum()?;
         }
 
         self.block_data_list.push(entry);

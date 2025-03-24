@@ -6,6 +6,8 @@ use crate::disk::*;
 use crate::errors::*;
 
 use super::amiga_dos::*;
+use super::amiga_dos_options::*;
+use super::constants::*;
 use super::file::*;
 
 
@@ -32,10 +34,24 @@ impl File {
         data_list_entry: &FileDataBlockListEntry,
         data_pos: usize,
     ) -> Result<(), Error> {
-        Block::new(
+        let mut block = Block::new(
             self.fs.borrow().disk(),
             data_list_entry.data_block_address,
-        ).write_u8_array(self.block_data_offset + data_pos, buf)
+        );
+
+        block.write_u8_array(self.block_data_offset + data_pos, buf)?;
+
+        if let FilesystemType::OFS = self.fs.borrow().get_filesystem_type()? {
+            let data_size = block.read_u32(BLOCK_DATA_OFS_SIZE_OFFSET)? as usize;
+
+            block.write_u32(
+                BLOCK_DATA_OFS_SIZE_OFFSET,
+                usize::max(data_size, data_pos + buf.len()) as u32,
+            )?;
+            block.write_checksum()?;
+        }
+
+        Ok(())
     }
 
     pub fn write(
