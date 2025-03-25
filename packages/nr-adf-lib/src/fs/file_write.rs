@@ -42,12 +42,13 @@ impl File {
         block.write_u8_array(self.block_data_offset + data_pos, buf)?;
 
         if let FilesystemType::OFS = self.fs.borrow().get_filesystem_type()? {
-            let data_size = block.read_u32(BLOCK_DATA_OFS_SIZE_OFFSET)? as usize;
+            let old_data_size = block.read_u32(BLOCK_DATA_OFS_SIZE_OFFSET)?;
+            let new_data_size = u32::max(
+                old_data_size,
+                (data_pos + buf.len()) as u32,
+            );
 
-            block.write_u32(
-                BLOCK_DATA_OFS_SIZE_OFFSET,
-                usize::max(data_size, data_pos + buf.len()) as u32,
-            )?;
+            block.write_u32(BLOCK_DATA_OFS_SIZE_OFFSET, new_data_size)?;
             block.write_checksum()?;
         }
 
