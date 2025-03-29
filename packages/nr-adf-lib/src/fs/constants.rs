@@ -24,10 +24,11 @@ pub const BLOCK_NAME_MAX_SIZE               : usize = 30;
 
 pub const BLOCK_FILE_SIZE                   : usize = BLOCK_SIZE - 0xbc;
 
+pub const BLOCK_PARENT_OFFSET               : usize = BLOCK_SIZE - 0x0c;
+
 pub const BLOCK_DATA_LIST_HEADER_KEY_OFFSET : usize = 0x04;
 pub const BLOCK_DATA_LIST_HIGH_SEQ_OFFSET   : usize = 0x08;
 pub const BLOCK_DATA_LIST_SIZE              : usize = BLOCK_SIZE/4 - 56;
-pub const BLOCK_DATA_LIST_PARENT_OFFSET     : usize = BLOCK_SIZE - 0x0c;
 pub const BLOCK_DATA_LIST_EXTENSION_OFFSET  : usize = BLOCK_SIZE - 0x08;
 
 pub const BLOCK_DATA_FFS_OFFSET             : usize = 0;

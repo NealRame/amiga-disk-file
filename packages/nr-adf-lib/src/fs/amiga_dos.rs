@@ -85,6 +85,10 @@ impl AmigaDos {
     pub(super) fn get_filesystem_type(&self) -> Result<FilesystemType, Error> {
         self.inner.borrow().get_filesystem_type()
     }
+
+    // pub(super) fn get_root_block_address(&self) -> LBAAddress {
+    //     self.inner.borrow().get_root_block_address()
+    // }
 }
 
 impl AmigaDos {

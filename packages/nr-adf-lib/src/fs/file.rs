@@ -1,8 +1,8 @@
 use std::cell::RefCell;
-use std::ffi::OsStr;
 use std::ops;
 use std::path::Path;
 use std::rc::Rc;
+use std::time::SystemTime;
 
 use crate::block::*;
 use crate::disk::*;
@@ -14,7 +14,7 @@ use super::block_type::*;
 use super::constants::*;
 use super::dir::*;
 use super::file_open::*;
-use super::metadata::*;
+use super::name::*;
 
 
 #[repr(usize)]
@@ -165,6 +165,15 @@ impl FileDataBlockListEntry {
     }
 }
 
+fn get_data_block_info(
+    fs: &AmigaDos,
+) -> Result<(usize, usize), Error> {
+    Ok(match fs.get_filesystem_type()? {
+        FilesystemType::FFS => (BLOCK_DATA_FFS_OFFSET, BLOCK_DATA_FFS_SIZE),
+        FilesystemType::OFS => (BLOCK_DATA_OFS_OFFSET, BLOCK_DATA_OFS_SIZE),
+    })
+}
+
 pub struct File {
     pub(super) fs: Rc<RefCell<AmigaDosInner>>,
     pub(super) block_data_list: Vec<FileDataBlockListEntry>,
@@ -297,7 +306,7 @@ impl File {
             ext_block_addr as u32,
         )?;
         ext_block.write_u32(
-            BLOCK_DATA_LIST_PARENT_OFFSET,
+            BLOCK_PARENT_OFFSET,
             self.header_block_addr as u32,
         )?;
         ext_block.write_checksum()?;
@@ -445,13 +454,33 @@ impl File {
     }
 }
 
+fn init_file_block_header(
+    fs: &AmigaDos,
+    name: &str,
+) -> Result<LBAAddress, Error> {
+    let block_addr = fs.inner.borrow_mut().reserve_block()?;
+    let mut block = Block::new(fs.disk(), block_addr);
+
+    block.clear()?;
+
+    block.write_block_primary_type(BlockPrimaryType::Header)?;
+    block.write_block_secondary_type(BlockSecondaryType::File)?;
+    block.write_alteration_date(&SystemTime::now())?;
+    block.write_name(name)?;
+    block.write_u32(
+        BLOCK_DATA_LIST_HEADER_KEY_OFFSET,
+        block.address as u32,
+    )?;
+
+    Ok(block_addr)
+}
+
 impl File {
     pub(super) fn try_open(
         fs: &AmigaDos,
         path: &Path,
         mode: usize,
     ) -> Result<Self, Error> {
-        let filesystem_type = fs.get_filesystem_type()?;
         let metadata = fs.metadata(path)?;
 
         let header_block_addr = metadata.header_block_address();
@@ -466,16 +495,7 @@ impl File {
         let (
             block_data_offset,
             block_data_size,
-        ) = match filesystem_type {
-            FilesystemType::FFS => (
-                BLOCK_DATA_FFS_OFFSET,
-                BLOCK_DATA_FFS_SIZE,
-            ),
-            FilesystemType::OFS => (
-                BLOCK_DATA_OFS_OFFSET,
-                BLOCK_DATA_OFS_SIZE,
-            ),
-        };
+        ) = get_data_block_info(fs)?;
 
         Ok(File {
             fs: fs.inner.clone(),
@@ -495,29 +515,42 @@ impl File {
         mode: usize,
         create_new: bool,
     ) -> Result<File, Error> {
-        let parent_path = path.parent().ok_or(Error::InvalidPathError)?;
+        if fs.exists(path)? {
+            if create_new {
+                return Err(Error::AlreadyExists);
+            } else {
+                let mut file = File::try_open(fs, path, mode)?;
+
+                file.set_len(0)?;
+                return Ok(file);
+            }
+        }
+
+        let name = get_basename(path)?;
+        let parent_path = get_dirname(path)?;
+
+        let block_data_list = Vec::new();
+        let (
+            block_data_offset,
+            block_data_size,
+        ) = get_data_block_info(fs)?;
+
         let mut parent_dir = Dir::try_with_path(fs, parent_path)?;
 
-        let file_name
-            = path
-                .file_name()
-                .and_then(OsStr::to_str)
-                .ok_or(Error::InvalidPathError)?;
+        let header_block_addr = init_file_block_header(fs, name)?;
 
-        let (_, created) = parent_dir.create_entry(file_name, FileType::File)?;
+        parent_dir.add_entry(name, header_block_addr)?;
 
-        if created {
-            return File::try_open(fs, path, mode);
-        }
-
-        if create_new {
-            return Err(Error::AlreadyExists);
-        }
-
-        let mut file = File::try_open(fs, path, mode)?;
-
-        file.set_len(0)?;
-        Ok(file)
+        Ok(Self {
+            fs: fs.inner.clone(),
+            block_data_list,
+            block_data_offset,
+            block_data_size,
+            header_block_addr,
+            mode,
+            size: 0,
+            pos: 0,
+        })
     }
 }
 

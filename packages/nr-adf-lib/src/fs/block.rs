@@ -206,6 +206,17 @@ impl Block {
 
         Ok(date_triplet_to_system_time(days, mins, ticks))
     }
+
+    pub fn read_parent_block_address(
+        &self,
+    ) -> Result<Option<LBAAddress>, Error> {
+        self.check_block_primary_type(&[
+            BlockPrimaryType::Header,
+            BlockPrimaryType::List,
+        ])?;
+
+        Ok(AmigaDos::to_address(self.read_u32(BLOCK_PARENT_OFFSET)?))
+    }
 }
 
 impl Block {
@@ -344,28 +355,5 @@ impl Block {
         address: LBAAddress,
     ) -> Result<(), Error> {
         self.write_u32(BLOCK_HASH_CHAIN_NEXT_OFFSET, address as u32)
-    }
-}
-
-impl Block {
-    pub(super) fn init_header(
-        &mut self,
-        secondary_type: BlockSecondaryType,
-        name: &str,
-    ) -> Result<(), Error> {
-        self.clear()?;
-
-        self.write_block_primary_type(BlockPrimaryType::Header)?;
-        self.write_block_secondary_type(secondary_type)?;
-        self.write_alteration_date(&SystemTime::now())?;
-        self.write_name(name)?;
-        self.write_u32(
-            BLOCK_DATA_LIST_HEADER_KEY_OFFSET,
-            self.address as u32,
-        )?;
-
-        self.write_checksum()?;
-
-        Ok(())
     }
 }

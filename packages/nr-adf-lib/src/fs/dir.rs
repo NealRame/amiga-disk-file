@@ -1,5 +1,4 @@
 use std::cell::RefCell;
-use std::ffi::OsStr;
 use std::path::{
     Path,
     PathBuf,
@@ -15,51 +14,62 @@ use super::amiga_dos::*;
 use super::block_type::*;
 use super::boot_block::*;
 use super::constants::*;
-use super::metadata::*;
 use super::name::*;
-use super::path_split::*;
 
-fn check_directory(
+
+pub(super) fn check_directory(
     disk: Rc<RefCell<Disk>>,
     addr: LBAAddress,
 ) -> Result<(), Error> {
     let block = Block::new(disk.clone(), addr);
 
-    match block.read_block_secondary_type()? {
-        BlockSecondaryType::Directory |
-        BlockSecondaryType::Root => {
-            Ok(())
-        }
+    match (
+        block.read_block_primary_type()?,
+        block.read_block_secondary_type()?,
+    ) {
+        (BlockPrimaryType::Header, BlockSecondaryType::Directory) |
+        (BlockPrimaryType::Header, BlockSecondaryType::Root) => Ok(()),
         _ => {
             Err(Error::NotADirectoryError)
         }
     }
 }
 
-#[derive(Clone, Debug)]
-pub struct DirEntry {
-    metadata: Metadata,
-    name: String,
-    path: PathBuf,
+pub(super) fn check_empty_directory(
+    disk: Rc<RefCell<Disk>>,
+    addr: LBAAddress,
+) -> Result<bool, Error> {
+    check_directory(disk.clone(), addr)?;
+
+    let block = Block::new(disk.clone(), addr);
+
+    for index in 0..BLOCK_TABLE_SIZE {
+        if block.read_block_table_address(index)?.is_some() {
+            return Ok(false)
+        }
+    }
+
+    Ok(true)
 }
 
-impl DirEntry {
-    pub fn file_type(&self) -> FileType {
-        self.metadata.file_type()
+pub(super) fn find_in_hash_chain(
+    disk: Rc<RefCell<Disk>>,
+    name: &str,
+    mut addr: Option<LBAAddress>,
+) -> Result<Option<LBAAddress>, Error> {
+    while let Some(block_addr) = addr {
+        let block = Block::new(disk.clone(), block_addr);
+        let entry_name = block.read_name()?;
+
+        if entry_name == name {
+            return Ok(Some(block_addr));
+        }
+        addr = AmigaDos::to_address(block.read_u32(BLOCK_HASH_CHAIN_NEXT_OFFSET)?);
     }
 
-    pub fn metadata(&self) -> Metadata {
-        self.metadata
-    }
-
-    pub fn name(&self) -> &str {
-        self.name.as_ref()
-    }
-
-    pub fn path(&self) -> &Path {
-        self.path.as_ref()
-    }
+    Ok(None)
 }
+
 
 #[derive(Clone, Debug)]
 pub(super) struct Dir {
@@ -74,13 +84,7 @@ impl Dir {
         header_block_address: LBAAddress,
         path: P,
     ) -> Result<Self, Error> {
-        let block = Block::new(fs.disk(), header_block_address);
-
-        block.check_block_primary_type(&[BlockPrimaryType::Header])?;
-        block.check_block_secondary_type(&[
-            BlockSecondaryType::Directory,
-            BlockSecondaryType::Root,
-        ])?;
+        check_directory(fs.disk(), header_block_address)?;
 
         Ok(Self {
             fs: fs.inner.clone(),
@@ -103,24 +107,6 @@ impl Dir {
     }
 }
 
-fn find_in_hash_chain(
-    disk: Rc<RefCell<Disk>>,
-    name: &str,
-    mut addr: Option<LBAAddress>,
-) -> Result<Option<LBAAddress>, Error> {
-    while let Some(block_addr) = addr {
-        let block = Block::new(disk.clone(), block_addr);
-        let entry_name = block.read_name()?;
-
-        if entry_name == name {
-            return Ok(Some(block_addr));
-        }
-        addr = AmigaDos::to_address(block.read_u32(BLOCK_HASH_CHAIN_NEXT_OFFSET)?);
-    }
-
-    Ok(None)
-}
-
 impl Dir {
     pub(super) fn lookup(
         &self,
@@ -139,199 +125,103 @@ impl Dir {
         find_in_hash_chain(disk.clone(), name, head)
     }
 
-    pub(super) fn create_entry(
+    pub(super) fn add_entry(
         &mut self,
         name: &str,
-        file_type: FileType,
-    ) -> Result<(LBAAddress, bool), Error> {
+        entry_block_address: LBAAddress,
+    ) -> Result<(), Error> {
         let disk = self.fs.borrow().disk();
-
-        let parent_block_addr = self.header_block_address;
 
         let boot_block = BootBlockReader::try_from_disk(disk.clone())?;
         let international_mode = boot_block.get_international_mode();
 
         let hash_index = hash_name(name, international_mode);
-        let head = Block::new(
+        let hash_chain_head = Block::new(
             disk.clone(),
-            parent_block_addr,
+            self.header_block_address,
         ).read_block_table_address(hash_index)?;
 
-        if let Some(addr) = find_in_hash_chain(disk.clone(), name, head)? {
-            Ok((addr, false))
-        } else {
-            let entry_block_addr = self.fs.borrow_mut().reserve_block()?;
-
-            let mut entry_block = Block::new(
-                disk.clone(),
-                entry_block_addr,
-            );
-            entry_block.init_header(file_type.into(), name)?;
-            entry_block.write_hash_chain_next_address(head.unwrap_or(0))?;
-            entry_block.write_u32(
-                BLOCK_DATA_LIST_PARENT_OFFSET,
-                parent_block_addr as u32,
-            )?;
-
-            let mut parent_block = Block::new(
-                disk.clone(),
-                parent_block_addr,
-            );
-            parent_block.write_alteration_date(&SystemTime::now())?;
-            parent_block.write_hash_table_block_address(
-                hash_index,
-                entry_block_addr,
-            )?;
-            parent_block.write_checksum()?;
-
-            Ok((entry_block_addr, true))
+        if find_in_hash_chain(disk.clone(), name, hash_chain_head)?.is_some() {
+            panic!("guru meditation: {} already exists!", name);
         }
-    }
-}
 
-#[derive(Clone, Debug)]
-pub struct DirIterator {
-    current_table_index: usize,
-    current_table_addr: Option<LBAAddress>,
-    disk: Rc<RefCell<Disk>>,
-    header_block_address: LBAAddress,
-    path: PathBuf,
-}
+        let mut dir_block = Block::new(
+            self.fs.borrow().disk(),
+            self.header_block_address,
+        );
 
-impl DirIterator {
-    fn block_table_next(
-        &mut self
-    ) -> Result<(), Error> {
-        let disk = self.disk.clone();
-        let header_block = Block::new(disk, self.header_block_address);
+        dir_block.write_alteration_date(&SystemTime::now())?;
+        dir_block.write_hash_table_block_address(
+            hash_index,
+            entry_block_address,
+        )?;
+        dir_block.write_checksum()?;
 
-        while self.current_table_addr.is_none()
-            && self.current_table_index < BLOCK_TABLE_SIZE {
-            self.current_table_addr = header_block.read_block_table_address(self.current_table_index)?;
-            self.current_table_index += 1;
-        }
+        let mut entry_block = Block::new(
+            disk.clone(),
+            entry_block_address,
+        );
+
+        entry_block.write_hash_chain_next_address(hash_chain_head.unwrap_or(0))?;
+        entry_block.write_u32(
+            BLOCK_PARENT_OFFSET,
+            entry_block_address as u32,
+        )?;
+        entry_block.write_checksum()?;
 
         Ok(())
     }
 
-    fn block_chain_next(
+    pub(super) fn remove_entry(
         &mut self,
-        block: &Block,
+        name: &str,
     ) -> Result<(), Error> {
-        self.current_table_addr = match block.read_hash_chain_next_address() {
-            Ok(addr) => addr,
-            Err(err) => {
-                return Err(err);
+        let disk = self.fs.borrow().disk();
+
+        let boot_block = BootBlockReader::try_from_disk(disk.clone())?;
+        let international_mode = boot_block.get_international_mode();
+
+        let hash_index = hash_name(name, international_mode);
+
+        let mut prev_addr = None;
+        let mut next_addr = None;
+
+        let mut curr_addr = Block::new(
+            disk.clone(),
+            self.header_block_address,
+        ).read_block_table_address(hash_index)?;
+
+        while curr_addr.is_some() {
+            let curr_block = Block::new(disk.clone(), curr_addr.unwrap());
+            let curr_name = curr_block.read_name()?;
+
+            next_addr = AmigaDos::to_address(curr_block.read_u32(BLOCK_HASH_CHAIN_NEXT_OFFSET)?);
+
+            if name == curr_name {
+                break;
             }
-        };
-        Ok(())
-    }
-}
 
-impl Iterator for DirIterator {
-    type Item = Result<DirEntry, Error>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if let Err(err) = self.block_table_next() {
-            return Some(Err(err));
+            prev_addr = curr_addr;
+            curr_addr = next_addr;
         }
 
-        let block_addr = self.current_table_addr?;
-        let block = Block::new(self.disk.clone(), block_addr);
+        let mut dir_block = Block::new(
+            self.fs.borrow().disk(),
+            self.header_block_address,
+        );
 
-        let metadata = match Metadata::try_from(&block) {
-            Ok(metadata) => metadata,
-            Err(err) => {
-                return Some(Err(err));
-            }
-        };
-
-        let name = match block.read_name() {
-            Ok(name) => name,
-            Err(err) => {
-                return Some(Err(err));
-            }
-        };
-
-        let path = self.path.join(&name);
-
-        if let Err(err) = self.block_chain_next(&block) {
-            return Some(Err(err));
-        }
-
-        Some(Ok(DirEntry { metadata, name, path }))
-    }
-}
-
-impl AmigaDos {
-    /// Returns an iterator over the entries within a directory.
-    pub fn read_dir<P: AsRef<Path>>(
-        &self,
-        path: P,
-    ) -> Result<DirIterator, Error> {
-        let dir = Dir::try_with_path(self, path)?;
-
-        Ok(DirIterator {
-            current_table_index: 0,
-            current_table_addr: None,
-            disk: self.disk(),
-            header_block_address: dir.header_block_address,
-            path: dir.path.clone(),
-        })
-    }
-
-    /// Creates a new, empty directory at the provided path.
-    /// Errors:
-    /// - When a parent of the given path doesn’t exist. Use `create_dir_all`
-    ///   function to create a directory and all its missing parents at the
-    ///   same time.
-    pub fn create_dir<P: AsRef<Path>>(
-        &mut self,
-        path: P,
-    ) -> Result<(), Error> {
-        let path = path.as_ref();
-        let parent_path = path.parent().ok_or(Error::InvalidPathError)?;
-        let mut parent_dir = Dir::try_with_path(self, parent_path)?;
-
-        let dir_name
-            = path
-                .file_name()
-                .and_then(OsStr::to_str)
-                .ok_or(Error::InvalidPathError)?;
-        let (addr, _) = parent_dir.create_entry(dir_name, FileType::Dir)?;
-
-        check_directory(self.disk(), addr)
-    }
-
-    /// Create a directory and all of its parent components if they are missing.
-    pub fn create_dir_all<P: AsRef<Path>>(
-        &mut self,
-        path: P,
-    ) -> Result<(), Error> {
-        if let Some(path) = path_split(path) {
-            let disk = self.inner.borrow().disk();
-
-            let boot_block = BootBlockReader::try_from_disk(disk.clone())?;
-            let mut dir = Dir::try_with_block_address(
-                self,
-                boot_block.get_root_block_address(),
-                PathBuf::default(),
-            )?;
-
-            for name in path {
-                let (addr, _) = dir.create_entry(&name, FileType::Dir)?;
-
-                check_directory(self.disk(), addr)?;
-                dir = Dir::try_with_block_address(
-                    self,
-                    addr,
-                    PathBuf::default(),
-                )?;
-            }
-
-            Ok(())
+        if prev_addr.is_some() {
+            Block::new(
+                disk.clone(),
+                prev_addr.unwrap(),
+            ).write_hash_chain_next_address(next_addr.unwrap_or(0))?;
         } else {
-            Err(Error::InvalidPathError)
+            dir_block.write_hash_table_block_address(hash_index, 0)?;
         }
+
+        dir_block.write_alteration_date(&SystemTime::now())?;
+        dir_block.write_checksum()?;
+
+        Ok(())
     }
 }
