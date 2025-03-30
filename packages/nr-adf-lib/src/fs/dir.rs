@@ -35,23 +35,6 @@ pub(super) fn check_directory(
     }
 }
 
-pub(super) fn check_empty_directory(
-    disk: Rc<RefCell<Disk>>,
-    addr: LBAAddress,
-) -> Result<bool, Error> {
-    check_directory(disk.clone(), addr)?;
-
-    let block = Block::new(disk.clone(), addr);
-
-    for index in 0..BLOCK_TABLE_SIZE {
-        if block.read_block_table_address(index)?.is_some() {
-            return Ok(false)
-        }
-    }
-
-    Ok(true)
-}
-
 pub(super) fn find_in_hash_chain(
     disk: Rc<RefCell<Disk>>,
     name: &str,

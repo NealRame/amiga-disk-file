@@ -14,6 +14,7 @@ mod dir_remove;
 mod file;
 mod file_open;
 mod file_read;
+mod file_remove;
 mod file_set_len;
 mod file_write;
 mod format;

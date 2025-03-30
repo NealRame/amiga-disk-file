@@ -179,7 +179,7 @@ pub struct File {
     pub(super) block_data_list: Vec<FileDataBlockListEntry>,
     pub(super) block_data_offset: usize,
     pub(super) block_data_size: usize,
-    pub(super) header_block_addr: LBAAddress,
+    pub(super) header_block_address: LBAAddress,
     pub(super) mode: usize,
     pub(super) pos: usize,
     pub(super) size: usize,
@@ -307,7 +307,7 @@ impl File {
         )?;
         ext_block.write_u32(
             BLOCK_PARENT_OFFSET,
-            self.header_block_addr as u32,
+            self.header_block_address as u32,
         )?;
         ext_block.write_checksum()?;
 
@@ -329,7 +329,7 @@ impl File {
             block.write_block_primary_type(BlockPrimaryType::Data)?;
             block.write_u32(
                 BLOCK_DATA_OFS_HEADER_KEY_OFFSET,
-                self.header_block_addr as u32,
+                self.header_block_address as u32,
             )?;
             block.write_u32(
                 BLOCK_DATA_OFS_SEQ_NUM_OFFSET,
@@ -345,7 +345,7 @@ impl File {
         &mut self,
     ) -> Result<(LBAAddress, usize), Error> {
         match self.block_data_list.last().copied() {
-            None => Ok((self.header_block_addr, 0)),
+            None => Ok((self.header_block_address, 0)),
             Some(entry) => {
                 if entry.extension_block_index < BLOCK_DATA_LIST_SIZE - 1 {
                     Ok((
@@ -432,7 +432,7 @@ impl File {
         } else {
             let mut block = Block::new(
                 self.fs.borrow().disk(),
-                self.header_block_addr,
+                self.header_block_address,
             );
 
             block.write_u32(
@@ -476,22 +476,20 @@ fn init_file_block_header(
 }
 
 impl File {
-    pub(super) fn try_open(
+    pub(super) fn try_open_with_block_address(
         fs: &AmigaDos,
-        path: &Path,
+        header_block_address: LBAAddress,
         mode: usize,
     ) -> Result<Self, Error> {
-        let metadata = fs.metadata(path)?;
+        let metadata = fs.inner.borrow().metadata(header_block_address)?;
 
-        let header_block_addr = metadata.header_block_address();
-        let size = metadata.size();
         let pos = 0;
+        let size = metadata.size();
 
         let block_data_list = FileDataBlockListEntry::try_get_block_data_list(
             fs.disk(),
-            header_block_addr,
+            header_block_address,
         )?;
-
         let (
             block_data_offset,
             block_data_size,
@@ -502,11 +500,21 @@ impl File {
             block_data_list,
             block_data_offset,
             block_data_size,
-            header_block_addr,
+            header_block_address,
             mode,
             pos,
             size,
         })
+    }
+
+    pub(super) fn try_open(
+        fs: &AmigaDos,
+        path: &Path,
+        mode: usize,
+    ) -> Result<Self, Error> {
+        let header_block_address = fs.lookup(path)?;
+
+        Self::try_open_with_block_address(fs, header_block_address, mode)
     }
 
     pub(super) fn try_create(
@@ -546,7 +554,7 @@ impl File {
             block_data_list,
             block_data_offset,
             block_data_size,
-            header_block_addr,
+            header_block_address: header_block_addr,
             mode,
             size: 0,
             pos: 0,

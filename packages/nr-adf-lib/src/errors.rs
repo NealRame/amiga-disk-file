@@ -28,7 +28,10 @@ pub enum Error {
     AlreadyExists,
 
     NotADirectoryError,
+    NotAFileError,
     NotFoundError,
+
+    NotEmptyError,
 
     NoSpaceLeft,
 
