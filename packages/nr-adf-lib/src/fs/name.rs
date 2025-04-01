@@ -1,6 +1,4 @@
-use std::ffi::OsStr;
 use std::ops::Rem;
-use std::path::Path;
 
 use crate::disk::BLOCK_SIZE;
 use crate::errors::*;
@@ -59,20 +57,6 @@ pub fn hash_name(
             hash & 0x07ff
         })
         .rem(BLOCK_SIZE/4 - 56)
-}
-
-pub(super) fn get_basename(
-    path: &Path,
-) -> Result<&str, Error> {
-    path.file_name()
-        .and_then(OsStr::to_str)
-        .ok_or(Error::InvalidPathError)
-}
-
-pub(super) fn get_dirname(
-    path: &Path,
-) -> Result<&Path, Error> {
-    path.parent().ok_or(Error::InvalidPathError)
 }
 
 #[cfg(test)]

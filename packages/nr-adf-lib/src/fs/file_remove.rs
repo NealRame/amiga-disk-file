@@ -5,7 +5,8 @@ use crate::errors::*;
 use super::amiga_dos::*;
 use super::dir::*;
 use super::file::*;
-use super::name::*;
+use super::path::*;
+
 
 impl AmigaDos {
     /// Removes an empty directory.

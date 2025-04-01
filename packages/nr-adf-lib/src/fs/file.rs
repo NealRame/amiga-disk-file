@@ -14,7 +14,7 @@ use super::block_type::*;
 use super::constants::*;
 use super::dir::*;
 use super::file_open::*;
-use super::name::*;
+use super::path::*;
 
 
 #[repr(usize)]

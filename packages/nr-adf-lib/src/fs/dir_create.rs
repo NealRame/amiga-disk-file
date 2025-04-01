@@ -13,8 +13,7 @@ use super::block_type::*;
 use super::boot_block::*;
 use super::constants::*;
 use super::dir::*;
-use super::name::*;
-use super::path_split::*;
+use super::path::*;
 
 
 fn init_dir_block_header(
@@ -71,7 +70,7 @@ impl AmigaDos {
         &mut self,
         path: P,
     ) -> Result<(), Error> {
-        if let Some(path) = path_split(path) {
+        if let Some(fragments) = split(path) {
             let disk = self.inner.borrow().disk();
 
             let boot_block = BootBlockReader::try_from_disk(disk.clone())?;
@@ -81,7 +80,7 @@ impl AmigaDos {
                 PathBuf::default(),
             )?;
 
-            for name in path {
+            for name in fragments {
                 let addr = if let Some(addr) = dir.lookup(&name)? {
                     check_directory(self.disk(), addr)?;
                     addr

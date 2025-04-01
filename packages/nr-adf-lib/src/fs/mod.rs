@@ -23,7 +23,7 @@ mod info;
 mod lookup;
 mod metadata;
 mod name;
-mod path_split;
+mod path;
 mod root_block;
 
 pub use amiga_dos::*;

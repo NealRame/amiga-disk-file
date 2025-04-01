@@ -7,7 +7,7 @@ use crate::errors::*;
 use super::amiga_dos::*;
 use super::boot_block::*;
 use super::dir::*;
-use super::path_split::*;
+use super::path::*;
 
 
 impl AmigaDos {
@@ -15,7 +15,7 @@ impl AmigaDos {
         &self,
         path: P,
     ) -> Result<LBAAddress, Error> {
-        if let Some(path) = path_split(path) {
+        if let Some(path) = split(path) {
             let disk = self.inner.borrow().disk();
 
             let boot_block = BootBlockReader::try_from_disk(disk.clone())?;

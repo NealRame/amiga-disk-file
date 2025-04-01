@@ -6,8 +6,7 @@ use std::rc::Rc;
 use crate::block::*;
 use crate::disk::*;
 use crate::errors::*;
-use crate::fs::name::get_basename;
-use crate::fs::name::get_dirname;
+use crate::fs::path::*;
 
 use super::amiga_dos::*;
 // use super::block_type::*;
