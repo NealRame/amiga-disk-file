@@ -14,7 +14,7 @@ use super::amiga_dos::*;
 // use super::boot_block::*;
 use super::constants::*;
 use super::dir::*;
-use super::metadata::*;
+// use super::metadata::*;
 // use super::name::*;
 
 pub(super) fn check_empty_directory(

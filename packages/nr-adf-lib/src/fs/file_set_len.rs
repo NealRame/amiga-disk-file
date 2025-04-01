@@ -4,6 +4,7 @@ use crate::errors::*;
 use super::amiga_dos_options::*;
 use super::constants::*;
 use super::file::*;
+// use super::file_set_time::*;
 
 
 impl File {
@@ -69,6 +70,8 @@ impl File {
             );
         }
 
+        self.sync_all()?;
+
         Ok(())
     }
 
@@ -102,6 +105,7 @@ impl File {
             self.pos,
             self.size,
         );
+        self.sync_all()?;
 
         Ok(())
     }
@@ -110,12 +114,16 @@ impl File {
         &mut self,
         size: usize,
     ) -> Result<(), Error> {
+        check_file_mode(FileMode::Write, self.mode)?;
+
         if size > self.size {
             return self.grow(size);
         }
+
         if size < self.size {
             return self.shrink(size);
         }
-        Ok(())
+
+        self.sync_all()
     }
 }

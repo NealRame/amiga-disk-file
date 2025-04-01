@@ -16,6 +16,7 @@ mod file_open;
 mod file_read;
 mod file_remove;
 mod file_set_len;
+mod file_set_time;
 mod file_write;
 mod format;
 mod info;
@@ -26,9 +27,7 @@ mod path_split;
 mod root_block;
 
 pub use amiga_dos::*;
-// pub use dir_create::*;
 pub use dir_read::*;
-// pub use dir_remove::*;
 pub use file::*;
 pub use file_open::*;
 pub use format::*;

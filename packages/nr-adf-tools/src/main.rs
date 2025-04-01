@@ -7,6 +7,7 @@ mod info;
 mod ls;
 mod mkdir;
 mod read;
+mod touch;
 mod write;
 
 
@@ -28,6 +29,8 @@ pub enum Commands {
     Mkdir(mkdir::Args),
     /// Read a file from a given Amiga disk file
     Read(read::Args),
+    /// Change file modification times
+    Touch(touch::Args),
     /// Write a file to a given Amiga disk location
     Write(write::Args),
 }
@@ -51,6 +54,7 @@ fn main() {
         Commands::Ls(args) => ls::run(args),
         Commands::Mkdir(args) => mkdir::run(args),
         Commands::Read(args) => read::run(args),
+        Commands::Touch(args) => touch::run(args),
         Commands::Write(args) => write::run(args),
     };
 

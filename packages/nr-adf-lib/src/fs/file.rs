@@ -452,6 +452,22 @@ impl File {
     ) -> Option<FileDataBlockListEntry> {
         self.block_data_list.get(pos/self.block_data_size).copied()
     }
+
+    pub(super) fn sync_all(
+        &mut self,
+    ) -> Result<(), Error> {
+        if test_file_mode(FileMode::Write, self.mode) {
+            let mut block = Block::new(
+                self.fs.borrow().disk(),
+                self.header_block_address,
+            );
+
+            block.write_file_size(self.size)?;
+            block.write_alteration_date(&SystemTime::now())?;
+            block.write_checksum()?;
+        }
+        Ok(())
+    }
 }
 
 fn init_file_block_header(
