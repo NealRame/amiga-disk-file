@@ -16,7 +16,6 @@ use nr_adf_lib::prelude::*;
 fn parse_time_value(args: &Args) -> Result<SystemTime> {
     if let Some(s) = &args.date_time {
         let dt = DateTime::parse_from_rfc3339(s)?;
-            // parse_from_str(s, "%Y%m%d%H%M%S")?;
         Ok(dt.into())
     } else {
         Ok(SystemTime::now())
@@ -55,13 +54,14 @@ pub fn run(args: &Args) -> Result<()> {
         return Ok(())
     }
 
-    let mut file = File::options()
+    File::options()
         .write(true)
         .truncate(true)
         .create(true)
-        .open(&fs, &args.amiga_input_filepath)?;
+        .open(&fs, &args.amiga_input_filepath)?
+        .set_time(&time)?;
 
-    file.set_time(&time)?;
+    fs.dump(&args.amiga_disk_filepath)?;
 
     Ok(())
 }
