@@ -283,7 +283,13 @@ impl File {
         self.fs.borrow_mut().free_block(entry.data_block_address)?;
         self.unset_extension_block_data_block(entry)?;
 
-        self.size -= self.size%self.block_data_size;
+        let block_data_offset = self.size%self.block_data_size;
+
+        if block_data_offset == 0 {
+            self.size -= self.block_data_size;
+        } else {
+            self.size -= block_data_offset;
+        }
         self.pos = self.pos.min(self.size);
 
         Ok(())

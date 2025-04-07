@@ -75,15 +75,28 @@ impl File {
         Ok(())
     }
 
+    pub(super) fn get_block_index(
+        &self,
+        size: usize,
+    ) -> usize {
+        if size < self.block_data_size {
+            0
+        } else if size%self.block_data_size > 0 {
+            size/self.block_data_size
+        } else {
+            size/self.block_data_size -  1
+        }
+    }
+
     fn shrink(
         &mut self,
         new_size: usize,
     ) -> Result<(), Error> {
         assert!(new_size < self.size, "internal error");
 
-        let new_size_block_index = new_size/self.block_data_size;
+        let new_size_block_index = self.get_block_index(new_size);
 
-        while self.size/self.block_data_size > new_size_block_index {
+        while self.get_block_index(self.size) > new_size_block_index {
             self.pop_data_block_list_entry()?;
         }
 
