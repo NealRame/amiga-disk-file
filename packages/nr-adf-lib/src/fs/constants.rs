@@ -73,7 +73,7 @@ pub const ROOT_BLOCK_HASH_TABLE_SIZE_OFFSET : usize = 0x0c;
 
 pub const ROOT_BLOCK_BITMAP_FLAG_OFFSET     : usize = BLOCK_SIZE - 0xc8;
 pub const ROOT_BLOCK_BITMAP_PAGES_OFFSET    : usize = BLOCK_SIZE - 0xc4;
-pub const ROOT_BLOCK_BITMAP_PAGES_MAX_COUNT : usize = 25;
+pub const ROOT_BLOCK_BITMAP_PAGES_SIZE      : usize = 25;
 // pub const ROOT_BLOCK_BITMAP_PAGES_EXT_OFFSET : usize = BLOCK_SIZE - 0x60;
 
 pub const ROOT_BLOCK_V_DAYS_OFFSET          : usize = BLOCK_SIZE - 0x28;

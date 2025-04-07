@@ -81,7 +81,7 @@ impl Block {
 
         let v = self.read_u32_vector(
             ROOT_BLOCK_BITMAP_PAGES_OFFSET,
-            ROOT_BLOCK_BITMAP_PAGES_MAX_COUNT,
+            ROOT_BLOCK_BITMAP_PAGES_SIZE,
         )?;
 
         Ok(v.iter().copied().filter_map(|addr| {
