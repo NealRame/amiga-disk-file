@@ -196,6 +196,27 @@ impl BitmapInitializer {
 ******************************************************************************/
 
 impl AmigaDosInner {
+    #[cfg(test)]
+    pub fn get_bitmap(
+        &self,
+    ) -> Result<Vec<u8>, Error> {
+        let bitmap_block_addresses = self.get_bitmap_block_addresses();
+        let mut bitmap = vec![0u8; bitmap_block_addresses.len()*BLOCK_SIZE];
+
+        for (i, addr) in bitmap_block_addresses.iter().copied().enumerate() {
+            let slice = &mut bitmap[i*BLOCK_SIZE..(i + 1)*BLOCK_SIZE];
+
+            Block::new(
+                self.disk(),
+                addr
+            ).read_u8_array(0, slice)?;
+        }
+
+        Ok(bitmap)
+    }
+}
+
+impl AmigaDosInner {
     pub fn reserve_block(
         &mut self,
     ) -> Result<LBAAddress, Error> {
