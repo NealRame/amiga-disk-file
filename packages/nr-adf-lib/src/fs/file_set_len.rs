@@ -4,7 +4,6 @@ use crate::errors::*;
 use super::amiga_dos_options::*;
 use super::constants::*;
 use super::file::*;
-// use super::file_set_time::*;
 
 
 impl File {
@@ -35,7 +34,7 @@ impl File {
 
         let block_offset = self.size%self.block_data_size;
         let block_size = usize::min(
-            new_size - self.size/self.block_data_size,
+            new_size - self.size/self.block_data_size, // ???
             self.block_data_size,
         );
 
@@ -138,5 +137,199 @@ impl File {
         }
 
         self.sync_all()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::rc::Rc;
+    use std::cell::RefCell;
+
+    use crate::disk::*;
+    use crate::fs::constants::BLOCK_DATA_OFS_SIZE;
+    use crate::fs::*;
+
+    fn init_fs() -> AmigaDos {
+        let disk = Disk::create(DiskType::DoubleDensity);
+        AmigaDosFormater::default()
+            .with_cache_mode(CacheMode::Off)
+            .with_filesystem_type(FilesystemType::OFS)
+            .with_international_mode(InternationalMode::Off)
+            .format(Rc::new(RefCell::new(disk)), "TEST")
+            .unwrap()
+    }
+
+    fn create_file(
+        fs: &AmigaDos,
+    ) -> File {
+        File::options().create(true).write(true).open(fs, "/data").unwrap()
+    }
+
+    #[test]
+    fn set_len_ofs_shrink_488_to_0() {
+        let fs = init_fs();
+
+        let data_in = vec![42u8; BLOCK_DATA_OFS_SIZE];
+        let mut file = create_file(&fs);
+
+        let bitmap1 = fs.inner.borrow().get_bitmap();
+
+        file.write(&data_in).unwrap();
+        file.set_len(0).unwrap();
+
+        let bitmap2 = fs.inner.borrow().get_bitmap();
+
+        assert_eq!(file.size, 0);
+        assert_eq!(bitmap1, bitmap2);
+    }
+
+    #[test]
+    fn set_len_ofs_shrink_512_to_0() {
+        let fs = init_fs();
+
+        let data_in = vec![42u8; BLOCK_DATA_OFS_SIZE];
+        let mut file = create_file(&fs);
+
+        let bitmap1 = fs.inner.borrow().get_bitmap();
+
+        file.write(&data_in).unwrap();
+        file.set_len(0).unwrap();
+
+        let bitmap2 = fs.inner.borrow().get_bitmap();
+
+        assert_eq!(file.size, 0);
+        assert_eq!(bitmap1, bitmap2);
+    }
+
+    #[test]
+    fn set_len_ofs_shrink_15128_to_0() {
+        let fs = init_fs();
+
+        let data_in = vec![42u8; 15128];
+        let mut file = create_file(&fs);
+
+        let bitmap1 = fs.inner.borrow().get_bitmap();
+
+        file.write(&data_in).unwrap();
+        file.set_len(0).unwrap();
+
+        let bitmap2 = fs.inner.borrow().get_bitmap();
+
+        assert_eq!(file.size, 0);
+        assert_eq!(bitmap1, bitmap2);
+    }
+
+    #[test]
+    fn set_len_ofs_shrink_15129_to_0() {
+        let fs = init_fs();
+
+        let data_in = vec![42u8; 15129];
+        let mut file = create_file(&fs);
+
+        let bitmap1 = fs.inner.borrow().get_bitmap();
+
+        file.write(&data_in).unwrap();
+        file.set_len(0).unwrap();
+
+        let bitmap2 = fs.inner.borrow().get_bitmap();
+
+        assert_eq!(file.size, 0);
+        assert_eq!(bitmap1, bitmap2);
+    }
+
+    #[test]
+    fn set_len_ofs_shrink_35136_to_0() {
+        let fs = init_fs();
+
+        let data_in = vec![42u8; 35136];
+        let mut file = create_file(&fs);
+
+        let bitmap1 = fs.inner.borrow().get_bitmap();
+
+        file.write(&data_in).unwrap();
+        file.set_len(0).unwrap();
+
+        let bitmap2 = fs.inner.borrow().get_bitmap();
+
+        assert_eq!(file.size, 0);
+        assert_eq!(bitmap1, bitmap2);
+    }
+
+    #[test]
+    fn set_len_ofs_shrink_35137_to_0() {
+        let fs = init_fs();
+
+        let data_in = vec![42u8; 35137];
+        let mut file = create_file(&fs);
+
+        let bitmap1 = fs.inner.borrow().get_bitmap();
+
+        file.write(&data_in).unwrap();
+        file.set_len(0).unwrap();
+
+        let bitmap2 = fs.inner.borrow().get_bitmap();
+
+        assert_eq!(file.size, 0);
+        assert_eq!(bitmap1, bitmap2);
+    }
+
+    #[test]
+    fn set_len_ofs_shrink_488_to_32() {
+        let fs = init_fs();
+
+        let data_in = vec![42u8; BLOCK_DATA_OFS_SIZE];
+        let mut file = create_file(&fs);
+
+        file.write(&data_in[..32]).unwrap();
+
+        let bitmap1 = fs.inner.borrow().get_bitmap();
+
+        file.write(&data_in[32..]).unwrap();
+        file.set_len(32).unwrap();
+
+        let bitmap2 = fs.inner.borrow().get_bitmap();
+
+        assert_eq!(file.size, 32);
+        assert_eq!(bitmap1, bitmap2);
+    }
+
+    #[test]
+    fn set_len_ofs_shrink_512_to_32() {
+        let fs = init_fs();
+
+        let data_in = vec![42u8; 512];
+        let mut file = create_file(&fs);
+
+        file.write(&data_in[..32]).unwrap();
+
+        let bitmap1 = fs.inner.borrow().get_bitmap();
+
+        file.write(&data_in[32..]).unwrap();
+        file.set_len(32).unwrap();
+
+        let bitmap2 = fs.inner.borrow().get_bitmap();
+
+        assert_eq!(file.size, 32);
+        assert_eq!(bitmap1, bitmap2);
+    }
+
+    #[test]
+    fn set_len_ofs_shrink_15128_to_32() {
+        let fs = init_fs();
+
+        let data_in = vec![42u8; 15128];
+        let mut file = create_file(&fs);
+
+        file.write(&data_in[..32]).unwrap();
+
+        let bitmap1 = fs.inner.borrow().get_bitmap();
+
+        file.write(&data_in[32..]).unwrap();
+        file.set_len(32).unwrap();
+
+        let bitmap2 = fs.inner.borrow().get_bitmap();
+
+        assert_eq!(file.size, 32);
+        assert_eq!(bitmap1, bitmap2);
     }
 }
