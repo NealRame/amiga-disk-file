@@ -498,15 +498,20 @@ fn init_file_block_header(
 }
 
 impl File {
-    pub(super) fn try_open_with_block_address(
+    pub(super) fn try_open(
         fs: &AmigaDos,
-        header_block_address: LBAAddress,
+        path: &Path,
         mode: usize,
     ) -> Result<Self, Error> {
-        let metadata = fs.inner.borrow().metadata(header_block_address)?;
+        let metadata =  fs.metadata(path)?;
 
-        let pos = 0;
+        if !metadata.is_file() {
+            return Err(Error::NotAFileError);
+        }
+
+        let header_block_address = metadata.header_block_address();
         let size = metadata.size();
+        let pos = 0;
 
         let block_data_list = FileDataBlockListEntry::try_get_block_data_list(
             fs.disk(),
@@ -517,7 +522,7 @@ impl File {
             block_data_size,
         ) = get_data_block_info(fs)?;
 
-        Ok(File {
+        let file = Self {
             fs: fs.inner.clone(),
             block_data_list,
             block_data_offset,
@@ -526,17 +531,9 @@ impl File {
             mode,
             pos,
             size,
-        })
-    }
+        };
 
-    pub(super) fn try_open(
-        fs: &AmigaDos,
-        path: &Path,
-        mode: usize,
-    ) -> Result<Self, Error> {
-        let header_block_address = fs.lookup(path)?;
-
-        Self::try_open_with_block_address(fs, header_block_address, mode)
+        Ok(file)
     }
 
     pub(super) fn try_create(

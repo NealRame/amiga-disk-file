@@ -14,33 +14,25 @@ impl AmigaDos {
         &self,
         path: P,
     ) -> Result<(), Error> {
-        let metadata = self.metadata(path.as_ref())?;
+        let mut file = File::try_open(
+            self,
+            path.as_ref(),
+            0|FileMode::Write,
+        )?;
 
-        if metadata.is_file() {
-            let header_block_address = metadata.header_block_address();
+        file.set_len(0)?;
 
-            let mut file = File::try_open_with_block_address(
-                self,
-                metadata.header_block_address(),
-                0|FileMode::Write
-            )?;
+        let name = get_basename(path.as_ref())?;
+        let parent_path = get_dirname(path.as_ref())?;
+        let mut dir = Dir::try_with_path(
+            self,
+            parent_path
+        )?;
 
-            file.set_len(0)?;
+        dir.remove_entry(name)?;
 
-            let name = get_basename(path.as_ref())?;
-            let parent_path = get_dirname(path.as_ref())?;
-            let mut dir = Dir::try_with_path(
-                self,
-                parent_path
-            )?;
+        self.inner.borrow_mut().free_block(file.header_block_address)?;
 
-            dir.remove_entry(name)?;
-
-            self.inner.borrow_mut().free_block(header_block_address)?;
-
-            Ok(())
-        } else {
-            Err(Error::NotAFileError)
-        }
+        Ok(())
     }
 }

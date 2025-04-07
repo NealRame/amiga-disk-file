@@ -37,6 +37,7 @@ impl OpenOptions {
             self.write = true;
         } else {
             self.append = false;
+            self.truncate = false;
             self.write = false;
         }
         self
@@ -59,7 +60,12 @@ impl OpenOptions {
         &mut self,
         truncate: bool,
     ) -> &mut Self {
-        self.truncate = truncate;
+        if truncate {
+            self.truncate = true;
+            self.write = true;
+        } else {
+            self.truncate = false;
+        }
         self
     }
 
@@ -116,10 +122,20 @@ impl OpenOptions {
             mode = mode | FileMode::Write;
         }
 
-        if self.create {
-            File::try_create(fs, path.as_ref(), mode, self.create_new)
+        let mut file = if self.create {
+            File::try_create(fs, path.as_ref(), mode, self.create_new)?
         } else {
-            File::try_open(fs, path.as_ref(), mode)
+            File::try_open(fs, path.as_ref(), mode)?
+        };
+
+        if self.truncate {
+            file.set_len(0)?;
         }
+
+        if self.append {
+            file.pos = file.size;
+        }
+
+        Ok(file)
     }
 }
