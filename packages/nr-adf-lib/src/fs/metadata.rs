@@ -1,5 +1,11 @@
+use std::fmt;
 use std::path::Path;
 use std::time::SystemTime;
+
+use chrono::{
+    DateTime,
+    Local,
+};
 
 use crate::block::*;
 use crate::disk::*;
@@ -30,12 +36,13 @@ impl From<FileType> for BlockSecondaryType {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub struct Metadata {
     header_block_address: LBAAddress,
     file_type: FileType,
     file_size: usize,
     alteration_date: SystemTime,
+    name: String,
 }
 
 impl TryFrom<&Block> for Metadata {
@@ -44,6 +51,7 @@ impl TryFrom<&Block> for Metadata {
     fn try_from(block: &Block) -> Result<Self, Self::Error> {
         let header_block_address = block.address;
         let alteration_date = block.read_alteration_date()?;
+        let name = block.read_name()?;
 
         let file_type = match block.read_block_secondary_type()? {
             BlockSecondaryType::Root |
@@ -71,7 +79,22 @@ impl TryFrom<&Block> for Metadata {
             file_type,
             header_block_address,
             alteration_date,
+            name,
         })
+    }
+}
+
+impl fmt::Display for Metadata {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let size = if FileType::File == self.file_type {
+            format!("{:>10}", self.file_size)
+        } else {
+            format!("{:>10}", "-")
+        };
+
+        let date = DateTime::<Local>::from(self.alteration_date).to_rfc3339();
+
+        write!(f, "{size} {date} {}", self.name)
     }
 }
 
@@ -102,6 +125,10 @@ impl Metadata {
 
     pub fn alteration_date(&self) -> SystemTime {
         self.alteration_date
+    }
+
+    pub fn name(&self) -> &str {
+        self.name.as_str()
     }
 }
 

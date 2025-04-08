@@ -28,7 +28,7 @@ impl DirEntry {
     }
 
     pub fn metadata(&self) -> Metadata {
-        self.metadata
+        self.metadata.clone()
     }
 
     pub fn name(&self) -> &str {
