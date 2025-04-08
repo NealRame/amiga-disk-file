@@ -19,7 +19,7 @@ pub struct Args {
     amiga_disk_filepath: PathBuf,
 
     /// Path to a file into the Amiga filesystem
-    amiga_input_filepath: PathBuf,
+    amiga_input_filepath: Option<PathBuf> ,
 
     /// Recursively list subdirectories encountered
     #[arg(short = 'r', long = "recurse")]
@@ -69,28 +69,22 @@ pub fn run(args: &Args) -> Result<()> {
     let disk = Disk::try_create_with_data(disk_data)?;
     let fs = AmigaDos::try_from(Rc::new(RefCell::new(disk)))?;
 
-    let metadata = fs.metadata(&args.amiga_input_filepath)?;
+    let path = if let Some(path) = args.amiga_input_filepath.as_ref() {
+        path.clone()
+    } else {
+        PathBuf::from("/")
+    };
+
+    let metadata = fs.metadata(&path)?;
 
     match metadata.file_type() {
         FileType::File => {
             list_file(&metadata)?;
         },
         FileType::Dir => {
-            list_directory(args, &fs, &args.amiga_input_filepath)?;
+            list_directory(args, &fs, &path)?;
         }
         _ => {},
     }
-
-    // for entry in fs.read_dir(&args.amiga_input_filepath)? {
-    //     match entry {
-    //         Ok(entry) => {
-    //             println!("{}", entry.name());
-    //         },
-    //         Err(err) => {
-    //             return Err(anyhow!("{}", err));
-    //         }
-    //     }
-    // }
-
     Ok(())
 }
