@@ -12,6 +12,8 @@ pub const BLOCK_CHECKSUM_OFFSET             : usize = 0x14;
 pub const BLOCK_TABLE_OFFSET                : usize = 0x18;
 pub const BLOCK_TABLE_SIZE                  : usize = BLOCK_SIZE/4 - 56;
 
+pub const BLOCK_PROTECT_OFFSET              : usize = BLOCK_SIZE - 0xc0;
+
 pub const BLOCK_HASH_CHAIN_NEXT_OFFSET      : usize = BLOCK_SIZE - 0x10;
 
 pub const BLOCK_ALTERATION_DAYS_OFFSET      : usize = BLOCK_SIZE - 0x5c;

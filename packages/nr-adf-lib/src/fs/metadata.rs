@@ -13,6 +13,7 @@ use crate::errors::*;
 
 use super::amiga_dos::*;
 use super::block_type::*;
+use super::constants::*;
 
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -36,11 +37,62 @@ impl From<FileType> for BlockSecondaryType {
     }
 }
 
+impl fmt::Display for FileType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", match self {
+            FileType::Dir  => 'd',
+            FileType::File => ' ',
+            FileType::Link => 'l',
+        })
+    }
+}
+
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Permissions (u32);
+
+impl Permissions {
+    pub fn owner_deletable(&self) -> bool  { self.0 & 0x00000001 == 0 }
+    pub fn owner_executable(&self) -> bool { self.0 & 0x00000002 == 0 }
+    pub fn owner_writable(&self) -> bool   { self.0 & 0x00000004 == 0 }
+    pub fn owner_readable(&self) -> bool   { self.0 & 0x00000008 == 0 }
+
+    pub fn group_deletable(&self) -> bool  { self.0 & 0x00000100 != 0 }
+    pub fn group_executable(&self) -> bool { self.0 & 0x00000200 != 0 }
+    pub fn group_writable(&self) -> bool   { self.0 & 0x00000400 != 0 }
+    pub fn group_readable(&self) -> bool   { self.0 & 0x00000800 != 0 }
+
+    pub fn other_deletable(&self) -> bool  { self.0 & 0x00001000 != 0 }
+    pub fn other_executable(&self) -> bool { self.0 & 0x00002000 != 0 }
+    pub fn other_writable(&self) -> bool   { self.0 & 0x00004000 != 0 }
+    pub fn other_readable(&self) -> bool   { self.0 & 0x00008000 != 0 }
+}
+
+impl fmt::Display for Permissions {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}{}{}{}{}{}{}{}{}{}{}{}",
+            if self.owner_readable()   { 'r' } else { '-' },
+            if self.owner_writable()   { 'w' } else { '-' },
+            if self.owner_executable() { 'e' } else { '-' },
+            if self.owner_deletable()  { 'd' } else { '-' },
+            if self.group_readable()   { 'r' } else { '-' },
+            if self.group_writable()   { 'w' } else { '-' },
+            if self.group_executable() { 'e' } else { '-' },
+            if self.group_deletable()  { 'd' } else { '-' },
+            if self.other_readable()   { 'r' } else { '-' },
+            if self.other_writable()   { 'w' } else { '-' },
+            if self.other_executable() { 'e' } else { '-' },
+            if self.other_deletable()  { 'd' } else { '-' },
+        )
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct Metadata {
     header_block_address: LBAAddress,
     file_type: FileType,
     file_size: usize,
+    permissions: Permissions,
     alteration_date: SystemTime,
     name: String,
 }
@@ -68,6 +120,8 @@ impl TryFrom<&Block> for Metadata {
             },
         };
 
+        let permissions = Permissions(block.read_u32(BLOCK_PROTECT_OFFSET)?);
+
         let file_size = if file_type == FileType::File {
             block.read_file_size()?
         } else {
@@ -77,6 +131,7 @@ impl TryFrom<&Block> for Metadata {
         Ok(Metadata {
             file_size,
             file_type,
+            permissions,
             header_block_address,
             alteration_date,
             name,
@@ -86,21 +141,28 @@ impl TryFrom<&Block> for Metadata {
 
 impl fmt::Display for Metadata {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let date = DateTime::<Local>::from(self.alteration_date).to_rfc3339();
         let size = if FileType::File == self.file_type {
             format!("{:>10}", self.file_size)
         } else {
             format!("{:>10}", "-")
         };
 
-        let date = DateTime::<Local>::from(self.alteration_date).to_rfc3339();
-
-        write!(f, "{size} {date} {}", self.name)
+        write!(f, "{} {} {size} {date} {}",
+            self.file_type,
+            self.permissions,
+            self.name,
+        )
     }
 }
 
 impl Metadata {
     pub fn file_type(&self) -> FileType {
         self.file_type
+    }
+
+    pub fn permissions(&self) -> Permissions {
+        self.permissions
     }
 
     pub fn is_dir(&self) -> bool {
