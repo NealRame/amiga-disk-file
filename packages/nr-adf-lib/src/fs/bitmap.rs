@@ -181,8 +181,9 @@ impl BitmapInitializer {
         disk: Rc<RefCell<Disk>>,
     ) -> Result<(), Error> {
         let root_block_address =
-            self.root_block_address
-                .unwrap_or_else(|| disk.borrow().block_count()/2);
+            self.root_block_address.unwrap_or_else(|| {
+                disk.borrow().block_count()/2
+            });
 
         init_bitmap_blocks(disk.clone(), root_block_address)?;
         reserve_bitmap_blocks(disk.clone(), root_block_address)?;
