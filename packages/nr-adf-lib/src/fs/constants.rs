@@ -89,4 +89,5 @@ pub const ROOT_BLOCK_C_TICKS_OFFSET         : usize = BLOCK_SIZE - 0x14;
 pub const ROOT_BLOCK_EXTENSION_OFFSET       : usize = BLOCK_SIZE - 0x08;
 
 // Bitmap block ///////////////////////////////////////////////////////////////
-pub const BITMAP_BLOCK_BIT_COUNT: usize = (BLOCK_SIZE - 4)*8;
+pub const BITMAP_BLOCK_CHECKSUM_OFFSET      : usize = 0;
+pub const BITMAP_BLOCK_BIT_COUNT            : usize = (BLOCK_SIZE - 4)*8;

@@ -59,7 +59,7 @@ fn init_bitmap_blocks(
         )?;
     }
 
-    Ok(())
+    Block::new(disk.clone(), root_block_address).write_checksum()
 }
 
 fn update_bitmap_blocks(
@@ -70,16 +70,20 @@ fn update_bitmap_blocks(
 ) -> Result<(), Error> {
     let mut disk = disk.borrow_mut();
 
+    if addr > disk.block_count() {
+        return Err(Error::DiskInvalidLBAAddressError(addr));
+    }
+
     addr -= 2;
 
     let page_index = addr/BITMAP_BLOCK_BIT_COUNT;
     let page = disk.blocks_mut(bitmap_block_addresses[page_index], 1)?;
-    let page_bit_offset = 32 + addr%BITMAP_BLOCK_BIT_COUNT;
 
+    let page_bit_offset = addr%BITMAP_BLOCK_BIT_COUNT;
     let page_word_index = page_bit_offset/32;
     let page_word_offset = page_bit_offset%32;
 
-    if let Some(dword) = page.chunks_mut(4).nth(page_word_index) {
+    if let Some(dword) = page.chunks_mut(4).skip(1).nth(page_word_index) {
         let byte_index = std::mem::size_of::<u32>() - 1 - page_word_offset/8;
         let bit_offset = page_word_offset%8;
 
@@ -89,7 +93,7 @@ fn update_bitmap_blocks(
         };
     }
 
-    let checksum = compute_checksum(page, 0);
+    let checksum = compute_checksum(page, BITMAP_BLOCK_CHECKSUM_OFFSET);
 
     page[..4].copy_from_slice(&checksum.to_be_bytes());
 
