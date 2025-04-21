@@ -77,3 +77,29 @@ impl AmigaDosFormater {
         AmigaDos::try_from(disk.clone())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::rc::Rc;
+    use std::cell::RefCell;
+
+    use super::*;
+
+    #[test]
+    fn format() {
+        let disk = Disk::create(DiskType::DoubleDensity);
+        let block_count = disk.block_count();
+
+        let fs = AmigaDosFormater::default()
+            .with_cache_mode(CacheMode::Off)
+            .with_filesystem_type(FilesystemType::OFS)
+            .with_international_mode(InternationalMode::Off)
+            .format(Rc::new(RefCell::new(disk)), "TEST")
+            .unwrap();
+
+        let info = fs.info().unwrap();
+
+        assert_eq!(info.total_block_count, block_count);
+        assert_eq!(info.free_block_count, block_count - 4);
+    }
+}
