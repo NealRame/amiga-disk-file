@@ -1,8 +1,7 @@
 use std::path::Path;
 
 use crate::block::*;
-use crate::disk::*;
-use crate::errors::*;
+use crate::prelude::*;
 
 use super::amiga_dos::*;
 use super::amiga_dos_options::*;
@@ -84,19 +83,12 @@ impl AmigaDos {
         path: P,
         data: C
     ) -> Result<(), Error> {
-        let mut output = File::options()
-            .write(true)
+        File::options()
             .create(true)
             .truncate(true)
-            .open(
-                self,
-                path.as_ref(),
-            )?;
-
-        for chunk in data.as_ref().chunks(BLOCK_SIZE) {
-            output.write(chunk)?;
-        }
-
+            .write(true)
+            .open(self, path.as_ref())?
+            .write(data.as_ref())?;
         Ok(())
     }
 }
